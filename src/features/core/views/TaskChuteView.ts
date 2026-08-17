@@ -538,6 +538,7 @@ export class TaskChuteView
       showStartTimePopup: (inst, anchor) => view.showStartTimePopup(inst, anchor),
       showStopTimePopup: (inst, anchor) => view.showStopTimePopup(inst, anchor),
       showReminderSettingsModal: (inst) => view.showReminderSettingsModal(inst),
+      showEstimatedTimeEditModal: (inst) => view.showEstimatedTimeEditModal(inst),
       getRecipeProgressSummary: (inst) => view.getRecipeProgressSummary(inst),
       showRecipeRunPopover: (inst, anchor) => view.showRecipeRunPopover(inst, anchor),
       isRecipeFeatureEnabled: () => view.isRecipeFeatureEnabled(),

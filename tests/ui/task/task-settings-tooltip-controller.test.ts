@@ -379,6 +379,32 @@ const createTimeController = () => {
     expect(host.duplicateInstance).not.toHaveBeenCalled()
   })
 
+  test('renders translated estimate settings label and clear hint', () => {
+    const showEstimatedTimeEditModal = jest.fn()
+    const host = createHost({
+      showEstimatedTimeEditModal,
+      tv: (key, fallback) => {
+        if (key === 'buttons.setEstimatedTime') return '見積時間を設定'
+        if (key === 'labels.minutesShort') return 'm'
+        if (key === 'forms.estimatedTimeInfo') return '空欄で保存すると見積時間を削除します'
+        return fallback
+      },
+    })
+    const controller = new TaskSettingsTooltipController(host)
+    const anchor = document.createElement('button')
+    document.body.appendChild(anchor)
+    const instance = createInstance({ task: { estimatedMinutes: 26 } })
+
+    controller.show(instance, anchor)
+
+    const item = queryTooltipItem('見積時間を設定')
+    expect(item.textContent).toContain('26m')
+    expect(item.getAttribute('title')).toBe('空欄で保存すると見積時間を削除します')
+    item.click()
+
+    expect(showEstimatedTimeEditModal).toHaveBeenCalledWith(instance)
+  })
+
   test('positions tooltip using the active document window', () => {
     const originalActiveDocument = activeDocument
     const iframe = document.createElement('iframe')

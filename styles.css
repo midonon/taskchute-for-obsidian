@@ -629,12 +629,28 @@
 
 .task-estimate {
   flex: 0 0 auto;
+  appearance: none;
+  border: 0;
   padding: 1px 6px;
   border-radius: 999px;
   font-size: var(--font-ui-smaller);
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
   background: var(--background-modifier-hover);
+  cursor: pointer;
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.task-estimate:hover,
+.task-estimate:active {
+  color: var(--text-normal);
+  background: var(--background-modifier-border);
+}
+
+.task-estimate:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
 }
 .time-slot-header.tc-collapsible:hover {
   background: var(--background-modifier-hover);
@@ -814,6 +830,20 @@
   font-size: inherit;
   font-weight: 500;
   color: var(--text-normal);
+}
+
+.task-creation-estimate-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-creation-estimate-input .task-creation-estimated-minutes {
+  width: min(100%, 12rem);
+}
+
+.task-creation-estimate-unit {
+  color: var(--text-muted);
 }
 
 .task-creation-toggle-row {
@@ -2565,13 +2595,38 @@
 
 .task-item {
   display: grid;
-  grid-template-columns: 20px 40px 1fr 220px 110px 50px 30px 30px 30px;
+  grid-template-columns: 20px 40px minmax(0, 1fr) minmax(80px, 220px) minmax(0, 110px) max-content max-content 30px max-content;
+  grid-template-areas: "drag play name project time estimate actual comment actions";
   gap: 8px;
   align-items: center;
   padding: 4px 15px 4px 10px;
   cursor: default;
   border-bottom: 1px solid var(--background-modifier-border);
   transition: background-color 0.2s ease;
+  margin: 0;
+}
+
+.task-item > .drag-handle { grid-area: drag; }
+.task-item > .play-stop-button { grid-area: play; }
+.task-item > .task-name-container { grid-area: name; }
+.task-item > .taskchute-project-display { grid-area: project; }
+.task-item > .task-time-range { grid-area: time; }
+.task-item > .task-estimate { grid-area: estimate; }
+.task-item > :is(.task-duration, .task-duration-placeholder, .task-timer-display) { grid-area: actual; }
+.task-item > .comment-button { grid-area: comment; }
+.task-item > .task-item-actions { grid-area: actions; }
+
+.task-item-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-width: max-content;
+}
+
+.task-item-actions :is(.routine-button, .settings-task-button) {
+  flex: 0 0 30px;
+  width: 30px;
   margin: 0;
 }
 
@@ -2745,6 +2800,8 @@
   justify-content: flex-end;
   min-width: 0;
   overflow: hidden;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   padding: 0 4px;
 }
@@ -3833,9 +3890,8 @@ textarea.form-textarea {
 /* レスポンシブ対応 - 表示優先度の調整 */
 
 .taskchute-medium .task-item {
-  grid-template-columns:
-    18px 32px minmax(0, 1fr) minmax(140px, auto) minmax(70px, auto)
-    50px 30px 30px;
+  grid-template-columns: 18px 32px minmax(0, 1fr) minmax(0, 110px) max-content max-content 30px max-content;
+  grid-template-areas: "drag play name time estimate actual comment actions";
   gap: 8px;
   padding-right: 12px;
 }
@@ -3849,14 +3905,15 @@ textarea.form-textarea {
 .taskchute-narrow .task-name,
 .taskchute-very-narrow .task-name {
   margin-right: 0;
-  white-space: normal;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* narrow: ドラッグ、再生、タスク名、時間範囲、コメント、ルーチン、設定 (経過時間なし) */
 .taskchute-narrow .task-item {
-  grid-template-columns: 18px 32px minmax(0, 1fr) 100px 28px 28px 28px;
+  grid-template-columns: 18px 32px minmax(0, 1fr) minmax(0, 100px) max-content 28px max-content;
+  grid-template-areas: "drag play name time estimate comment actions";
   gap: 6px;
   padding-left: 6px;
   padding-right: 16px;
@@ -3868,11 +3925,9 @@ textarea.form-textarea {
   padding-left: 4px;
 }
 
-.taskchute-narrow .settings-task-button {
-  width: auto;
-  min-width: 26px;
-  margin-left: 8px;
-  margin-right: 0;
+.taskchute-narrow .task-item-actions :is(.routine-button, .settings-task-button) {
+  flex-basis: 26px;
+  width: 26px;
 }
 
 /* narrow時は経過時間を非表示にし、コメント・ルーチンは表示を維持 */
@@ -3884,7 +3939,8 @@ textarea.form-textarea {
 
 /* very-narrow: ドラッグ、再生、タスク名、時間範囲、コメント、ルーチン、設定 (経過時間なし) */
 .taskchute-very-narrow .task-item {
-  grid-template-columns: 18px 28px minmax(0, 1fr) 90px 24px 27px 27px;
+  grid-template-columns: 18px 28px minmax(0, 1fr) minmax(0, 90px) max-content 24px max-content;
+  grid-template-areas: "drag play name time estimate comment actions";
   gap: 4px;
   padding-left: 4px;
   padding-right: 12px;
@@ -3899,13 +3955,10 @@ textarea.form-textarea {
   padding-left: 4px;
 }
 
-.taskchute-very-narrow .settings-task-button {
-  justify-self: flex-end;
-  width: auto;
-  min-width: 24px;
+.taskchute-very-narrow .task-item-actions :is(.routine-button, .settings-task-button) {
+  flex-basis: 24px;
+  width: 24px;
   font-size: 13px;
-  margin-left: 10px;
-  margin-right: 0;
   padding: 2px 4px;
 }
 
@@ -4040,9 +4093,8 @@ textarea.form-textarea {
 
 @container taskchute-list (max-width: 900px) {
   :is(.task-item) {
-    grid-template-columns:
-      18px 32px minmax(0, 1fr) minmax(140px, auto) minmax(70px, auto)
-      50px 30px 30px;
+    grid-template-columns: 18px 32px minmax(0, 1fr) minmax(0, 110px) max-content max-content 30px max-content;
+    grid-template-areas: "drag play name time estimate actual comment actions";
     gap: 8px;
     padding-right: 12px;
   }
@@ -4056,7 +4108,8 @@ textarea.form-textarea {
 @container taskchute-list (max-width: 640px) {
   /* 640px以下: ドラッグ、再生、タスク名、時間範囲、コメント、ルーチン、設定 (経過時間なし) */
   :is(.task-item) {
-    grid-template-columns: 18px 32px minmax(0, 1fr) 100px 28px 28px 28px;
+    grid-template-columns: 18px 32px minmax(0, 1fr) minmax(0, 100px) max-content 28px max-content;
+    grid-template-areas: "drag play name time estimate comment actions";
     gap: 6px;
     padding-left: 6px;
     padding-right: 16px;
@@ -4074,16 +4127,17 @@ textarea.form-textarea {
     padding-left: 4px;
   }
 
-  :is(.task-item .settings-task-button) {
-    width: auto;
-    min-width: 26px;
+  :is(.task-item .task-item-actions) :is(.routine-button, .settings-task-button) {
+    flex-basis: 26px;
+    width: 26px;
   }
 }
 
 @container taskchute-list (max-width: 520px) {
   /* 520px以下: さらにコンパクト */
   :is(.task-item) {
-    grid-template-columns: 18px 28px minmax(0, 1fr) 90px 24px 27px 27px;
+    grid-template-columns: 18px 28px minmax(0, 1fr) minmax(0, 90px) max-content 24px max-content;
+    grid-template-areas: "drag play name time estimate comment actions";
     gap: 4px;
     padding-left: 4px;
     padding-right: 12px;
@@ -4096,13 +4150,10 @@ textarea.form-textarea {
     padding-left: 4px;
   }
 
-  :is(.task-item .settings-task-button) {
-    justify-self: flex-end;
-    width: auto;
-    min-width: 24px;
+  :is(.task-item .task-item-actions) :is(.routine-button, .settings-task-button) {
+    flex-basis: 24px;
+    width: 24px;
     font-size: 13px;
-    margin-left: 10px;
-    margin-right: 0;
     padding: 2px 4px;
   }
 }

@@ -39,6 +39,7 @@ describe('TaskRowController', () => {
     showStartTimePopup: jest.fn(),
     showStopTimePopup: jest.fn(),
     showReminderSettingsModal: jest.fn(),
+    showEstimatedTimeEditModal: jest.fn(),
     calculateCrossDayDuration: (start: Date, stop: Date) => stop.getTime() - start.getTime(),
     app: {
       workspace: {
@@ -149,5 +150,58 @@ describe('TaskRowController', () => {
     controller.updateTimerDisplay(timer, running)
     expect(timer.textContent).toMatch(/00:05:1[45]/)
     jest.useRealTimers()
+  })
+
+  test('renderDurationDisplay labels completed actual time in total minutes', () => {
+    const host = createHost({
+      tv: (key, fallback) => {
+        if (key === 'labels.actualShort') return '実績'
+        if (key === 'labels.minutesShort') return 'm'
+        return fallback
+      },
+    })
+    const controller = new TaskRowController(host)
+    const container = document.createElement('div')
+    attachCreateEl(container)
+    const done = createInstance({
+      state: 'done',
+      startTime: new Date('2025-10-09T08:00:00Z'),
+      stopTime: new Date('2025-10-09T08:18:00Z'),
+      task: {
+        name: 'Sample',
+        path: 'Tasks/sample.md',
+        isRoutine: false,
+        estimatedMinutes: 30,
+      } as TaskInstance['task'],
+    })
+
+    controller.renderEstimateDisplay(container, done)
+    controller.renderDurationDisplay(container, done)
+
+    expect(container.querySelector('.task-duration')?.textContent).toBe('実績 18m')
+  })
+
+  test('renderEstimateDisplay opens the estimate editor from a keyboard-accessible button', () => {
+    const host = createHost()
+    const controller = new TaskRowController(host)
+    const container = document.createElement('div')
+    attachCreateEl(container)
+    const instance = createInstance({
+      task: {
+        name: 'Sample',
+        path: 'Tasks/sample.md',
+        isRoutine: false,
+        estimatedMinutes: 26,
+      } as TaskInstance['task'],
+    })
+
+    controller.renderEstimateDisplay(container, instance)
+    const button = container.querySelector('.task-estimate') as HTMLButtonElement
+
+    expect(button?.tagName).toBe('BUTTON')
+    expect(button?.type).toBe('button')
+    button.click()
+
+    expect(host.showEstimatedTimeEditModal).toHaveBeenCalledWith(instance)
   })
 })

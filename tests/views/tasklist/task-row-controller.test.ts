@@ -48,6 +48,7 @@ describe('TaskRowController.renderTaskName', () => {
     showStartTimePopup: jest.fn(),
     showStopTimePopup: jest.fn(),
     showReminderSettingsModal: jest.fn(),
+    showEstimatedTimeEditModal: jest.fn(),
     calculateCrossDayDuration: jest.fn(),
     app: {
       workspace: {

@@ -98,6 +98,7 @@ describe('TaskListRenderer', () => {
       showStartTimePopup: jest.fn(),
       showStopTimePopup: jest.fn(),
       showReminderSettingsModal: jest.fn(),
+      showEstimatedTimeEditModal: jest.fn(),
       isCollapsibleEnabled: () => false,
       updateTotalTasksCount: jest.fn(),
       showProjectModal: jest.fn(),
@@ -139,7 +140,7 @@ describe('TaskListRenderer', () => {
     expect(items).toHaveLength(3);
     expect(taskList.querySelector('[data-instance-id="run-1"] .task-timer-display')).toBeTruthy();
     const duration = taskList.querySelector('[data-instance-id="done-1"] .task-duration');
-    expect(duration?.textContent).toBe('01:15');
+    expect(duration?.textContent).toBe('Actual 75m');
   });
 
   test('render registers managed handlers for drag and context interactions', () => {
@@ -333,5 +334,32 @@ describe('TaskListRenderer', () => {
     const button = host.taskList.querySelector('.routine-button');
     expect(button).not.toBeNull();
     expect(button?.classList.contains('active')).toBe(true);
+  });
+
+  test('renders estimate as a direct-edit button and groups row actions', () => {
+    const instance = createInstance({
+      task: {
+        name: 'Estimated Task',
+        path: 'TASKS/estimated.md',
+        projectPath: undefined,
+        projectTitle: undefined,
+        isRoutine: true,
+        estimatedMinutes: 26,
+      } as TaskData,
+    })
+    const { host, renderer, taskList } = createHost([instance])
+
+    renderer.render()
+
+    const item = taskList.querySelector('.task-item') as HTMLElement
+    const estimateButton = item.querySelector('.task-estimate') as HTMLButtonElement
+    const actions = item.querySelector('.task-item-actions') as HTMLElement
+    expect(estimateButton?.tagName).toBe('BUTTON')
+    expect(actions).toBeTruthy()
+    expect(actions.querySelector('.routine-button')).toBeTruthy()
+    expect(actions.querySelector('.settings-task-button')).toBeTruthy()
+
+    estimateButton.click()
+    expect(host.showEstimatedTimeEditModal).toHaveBeenCalledWith(instance)
   });
 });

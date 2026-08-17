@@ -79,8 +79,9 @@ export class TaskCreationService {
     if (options?.reminderTime) {
       frontmatterLines.push(`reminder_time: "${options.reminderTime}"`)
     }
-    if (typeof options?.estimatedMinutes === 'number' && options.estimatedMinutes > 0) {
-      frontmatterLines.push(`estimatedMinutes: ${Math.round(options.estimatedMinutes)}`)
+    const estimatedMinutes = options?.estimatedMinutes
+    if (typeof estimatedMinutes === 'number' && Number.isInteger(estimatedMinutes) && estimatedMinutes > 0) {
+      frontmatterLines.push(`estimatedMinutes: ${estimatedMinutes}`)
     }
 
     frontmatterLines.push('---')

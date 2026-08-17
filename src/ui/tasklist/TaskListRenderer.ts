@@ -37,6 +37,7 @@ export type TaskListRendererHost = {
   showStartTimePopup: (inst: TaskInstance, anchor: HTMLElement) => void
   showStopTimePopup: (inst: TaskInstance, anchor: HTMLElement) => void
   showReminderSettingsModal: (inst: TaskInstance) => void
+  showEstimatedTimeEditModal: (inst: TaskInstance) => void
   getRecipeProgressSummary?: (inst: TaskInstance) => Promise<RecipeProgressSummary | null>
   showRecipeRunPopover?: (inst: TaskInstance, anchor: HTMLElement) => void
   isRecipeFeatureEnabled?: () => boolean
@@ -85,6 +86,7 @@ export default class TaskListRenderer {
       showStartTimePopup: (inst, anchor) => this.host.showStartTimePopup(inst, anchor),
       showStopTimePopup: (inst, anchor) => this.host.showStopTimePopup(inst, anchor),
       showReminderSettingsModal: (inst) => this.host.showReminderSettingsModal(inst),
+      showEstimatedTimeEditModal: (inst) => this.host.showEstimatedTimeEditModal(inst),
       getRecipeProgressSummary: this.host.getRecipeProgressSummary
         ? (inst) => this.host.getRecipeProgressSummary!(inst)
         : undefined,
@@ -266,8 +268,9 @@ export default class TaskListRenderer {
     this.rowController.renderEstimateDisplay(taskItem, inst)
     this.rowController.renderDurationDisplay(taskItem, inst)
     this.actions.renderCommentButton(taskItem, inst)
-    this.actions.renderRoutineButton(taskItem, inst)
-    this.actions.renderSettingsButton(taskItem, inst)
+    const actionArea = taskItem.createDiv({ cls: 'task-item-actions' })
+    this.actions.renderRoutineButton(actionArea, inst)
+    this.actions.renderSettingsButton(actionArea, inst)
     this.setupTaskItemEventListeners(taskItem, inst)
   }
 

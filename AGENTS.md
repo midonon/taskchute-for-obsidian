@@ -188,3 +188,7 @@ npm test       # Jest (ts-jest, jsdom)
 - `esbuild.config.mjs` handles bundling; uses `esbuild --bundle --format=cjs`
 - `tsconfig.json` for main build, `tsconfig.test.json` extends for tests
 - `eslint.config.mjs` で `eslint-plugin-obsidianmd` と `typescript-eslint` を共有設定化し、`npm run lint` で実行
+
+## Standing corrections
+- 目的に直接寄与しない固定ハッシュの確認・照合など、過剰な検証は行わない。必要最小限の確認に留める。
+- 作業報告、計画、コードコメント、コミットメッセージではユーザーPCのローカル絶対パスを使わず、リポジトリルートからの相対パスだけを使う。

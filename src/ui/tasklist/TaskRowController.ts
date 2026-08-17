@@ -11,6 +11,7 @@ export interface TaskRowControllerHost {
   showStartTimePopup: (inst: TaskInstance, anchor: HTMLElement) => void
   showStopTimePopup: (inst: TaskInstance, anchor: HTMLElement) => void
   showReminderSettingsModal: (inst: TaskInstance) => void
+  showEstimatedTimeEditModal: (inst: TaskInstance) => void
   getRecipeProgressSummary?: (inst: TaskInstance) => Promise<RecipeProgressSummary | null>
   showRecipeRunPopover?: (inst: TaskInstance, anchor: HTMLElement) => void
   isRecipeFeatureEnabled?: () => boolean
@@ -242,9 +243,8 @@ export default class TaskRowController {
     if (inst.state === 'done' && inst.startTime && inst.stopTime) {
       const durationEl = taskItem.createSpan( { cls: 'task-duration' })
       const duration = this.host.calculateCrossDayDuration(inst.startTime, inst.stopTime)
-      const hours = Math.floor(duration / 3600000)
-      const minutes = Math.floor((duration % 3600000) / 60000) % 60
-      durationEl.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+      const minutes = Math.max(0, Math.floor(duration / 60000))
+      durationEl.textContent = `${this.host.tv('labels.actualShort', 'Actual')} ${minutes}${this.host.tv('labels.minutesShort', 'm')}`
       if (inst.startTime.getDate() !== inst.stopTime.getDate()) {
         durationEl.setAttribute('title', this.host.tv('tooltips.crossDayTask', 'Cross-day task'))
       }
@@ -258,14 +258,20 @@ export default class TaskRowController {
 
   renderEstimateDisplay(taskItem: HTMLElement, inst: TaskInstance): void {
     if (!inst.task.estimatedMinutes) return
-    taskItem.createSpan({
+    const estimateButton = taskItem.createEl('button', {
       cls: 'task-estimate',
       text: `${this.host.tv('labels.estimateShort', 'Est.')} ${inst.task.estimatedMinutes}${this.host.tv('labels.minutesShort', 'm')}`,
       attr: {
+        type: 'button',
         title: this.host.tv('labels.estimatedTime', 'Estimated time: {minutes} minutes', {
           minutes: inst.task.estimatedMinutes,
         }),
+        'aria-label': this.host.tv('buttons.setEstimatedTime', 'Set estimated time'),
       },
+    })
+    this.registerTapEvent(estimateButton, (event) => {
+      event.stopPropagation()
+      this.host.showEstimatedTimeEditModal(inst)
     })
   }
 

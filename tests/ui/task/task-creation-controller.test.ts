@@ -207,6 +207,68 @@ describe('TaskCreationController', () => {
     expect(modal.querySelector('.task-creation-advanced')).toBeNull()
   })
 
+  test('showAddTaskModal always renders an integer estimate input below the task name', () => {
+    const { host } = createHost({ showTaskCreationAdvancedSettings: true })
+    const controller = new TaskCreationController(host)
+
+    controller.showAddTaskModal()
+    const modal = document.querySelector('.task-modal-overlay') as HTMLElement
+    const estimateInput = modal.querySelector('.task-creation-estimated-minutes') as HTMLInputElement
+
+    expect(estimateInput).toBeTruthy()
+    expect(estimateInput.type).toBe('number')
+    expect(estimateInput.inputMode).toBe('numeric')
+    expect(estimateInput.getAttribute('inputmode')).toBe('numeric')
+    expect(estimateInput.min).toBe('1')
+    expect(estimateInput.step).toBe('1')
+    expect(estimateInput.closest('.task-creation-advanced')).toBeNull()
+  })
+
+  test('showAddTaskModal saves the basic estimate with the new task', async () => {
+    const { host, taskCreationService } = createHost()
+    const controller = new TaskCreationController(host)
+
+    controller.showAddTaskModal()
+    const modal = document.querySelector('.task-modal-overlay') as HTMLElement
+    const nameInput = modal.querySelector('input[type="text"]') as HTMLInputElement
+    const estimateInput = modal.querySelector('.task-creation-estimated-minutes') as HTMLInputElement
+    const form = modal.querySelector('form') as HTMLFormElement
+    nameInput.value = 'New Task'
+    estimateInput.value = '30'
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await Promise.resolve()
+
+    expect(taskCreationService.createTaskFile).toHaveBeenCalledWith(
+      'New Task',
+      '2025-10-09',
+      undefined,
+      { reminderTime: undefined, estimatedMinutes: 30 },
+    )
+    expect(host.reloadTasksAndRestore).toHaveBeenCalled()
+  })
+
+  test('showAddTaskModal rejects a non-integer estimate before creating a task', async () => {
+    const { host, taskCreationService } = createHost()
+    const controller = new TaskCreationController(host)
+
+    controller.showAddTaskModal()
+    const modal = document.querySelector('.task-modal-overlay') as HTMLElement
+    const nameInput = modal.querySelector('input[type="text"]') as HTMLInputElement
+    const estimateInput = modal.querySelector('.task-creation-estimated-minutes') as HTMLInputElement
+    const form = modal.querySelector('form') as HTMLFormElement
+    nameInput.value = 'New Task'
+    estimateInput.value = '1.5'
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await Promise.resolve()
+
+    expect(taskCreationService.createTaskFile).not.toHaveBeenCalled()
+    expect(Notice).toHaveBeenCalledWith('Enter a whole number of minutes greater than 0')
+  })
+
   test('showAddTaskModal saves advanced schedule options and opens calendar export', async () => {
     const { host, taskCreationService } = createHost({
       showTaskCreationAdvancedSettings: true,

@@ -141,8 +141,32 @@ export default class TaskCreationController {
     restoreBanner.appendChild(restoreMessage)
     restoreBanner.appendChild(restoreButton)
 
+    const estimateGroup = doc.createElement("div")
+    estimateGroup.className = "form-group task-creation-estimate-group"
+    const estimateLabel = doc.createElement("label")
+    estimateLabel.className = "form-label"
+    estimateLabel.textContent = this.host.tv("addTask.estimatedMinutesLabel", "Estimated time")
+    const estimateField = doc.createElement("div")
+    estimateField.className = "task-creation-estimate-input"
+    const estimateInput = doc.createElement("input")
+    estimateInput.type = "number"
+    estimateInput.inputMode = "numeric"
+    estimateInput.min = "1"
+    estimateInput.step = "1"
+    estimateInput.placeholder = "30"
+    estimateInput.className = "form-input task-creation-estimated-minutes"
+    estimateInput.setAttribute("inputmode", "numeric")
+    const estimateUnit = doc.createElement("span")
+    estimateUnit.className = "task-creation-estimate-unit"
+    estimateUnit.textContent = this.host.tv("addTask.estimatedMinutesUnit", "min")
+    estimateField.appendChild(estimateInput)
+    estimateField.appendChild(estimateUnit)
+    estimateGroup.appendChild(estimateLabel)
+    estimateGroup.appendChild(estimateField)
+
     const advancedControls = this.createAdvancedControls(doc)
 
+    form.insertBefore(estimateGroup, nameGroup.nextSibling)
     form.insertBefore(restoreBanner, buttonGroup ?? null)
     if (advancedControls) {
       form.insertBefore(advancedControls.root, restoreBanner)
@@ -261,8 +285,23 @@ export default class TaskCreationController {
           return
         }
 
+        const estimatedMinutes = this.parseEstimatedMinutes(estimateInput.value)
+        if (estimatedMinutes === null) {
+          new Notice(
+            this.host.tv(
+              "forms.estimatedTimeInvalid",
+              "Enter a whole number of minutes greater than 0",
+            ),
+          )
+          estimateInput.focus()
+          return
+        }
+
         const creationMode = resolveCreationMode()
-        const advancedOptions = advancedControls?.getOptions(creationMode)
+        const advancedOptions = advancedControls?.getOptions()
+        const creationOptions = estimatedMinutes === undefined
+          ? advancedOptions
+          : { ...advancedOptions, estimatedMinutes }
 
         let created = false
         if (
@@ -270,11 +309,11 @@ export default class TaskCreationController {
           selectedSuggestion?.type === "task" &&
           selectedSuggestion.path
         ) {
-          created = await this.reuseExistingTask(selectedSuggestion.path, advancedOptions)
+          created = await this.reuseExistingTask(selectedSuggestion.path, creationOptions)
         } else {
           created = await this.createNewTask(
             taskName,
-            advancedOptions,
+            creationOptions,
           )
         }
         if (created) {
@@ -341,7 +380,7 @@ export default class TaskCreationController {
 
   private createAdvancedControls(doc: Document): {
     root: HTMLDetailsElement
-    getOptions: (creationMode: CreationMode) => TaskCreationAdvancedOptions | undefined
+    getOptions: () => TaskCreationAdvancedOptions | undefined
   } | null {
     if (this.host.plugin.settings.showTaskCreationAdvancedSettings !== true) {
       return null
@@ -371,23 +410,6 @@ export default class TaskCreationController {
     scheduledGroup.appendChild(scheduledLabel)
     scheduledGroup.appendChild(scheduledInput)
     body.appendChild(scheduledGroup)
-
-    const estimateGroup = doc.createElement("div")
-    estimateGroup.className = "task-creation-advanced-field"
-    const estimateLabel = doc.createElement("label")
-    estimateLabel.className = "form-label"
-    estimateLabel.textContent = this.withTrailingColon(
-      this.host.tv("addTask.estimatedMinutesLabel", "Estimated time (minutes)"),
-    )
-    const estimateInput = doc.createElement("input")
-    estimateInput.type = "number"
-    estimateInput.min = "1"
-    estimateInput.step = "5"
-    estimateInput.placeholder = "30"
-    estimateInput.className = "form-input task-creation-estimated-minutes"
-    estimateGroup.appendChild(estimateLabel)
-    estimateGroup.appendChild(estimateInput)
-    body.appendChild(estimateGroup)
 
     const defaultReminderMinutes = this.getDefaultReminderMinutes()
     const reminderRow = doc.createElement("label")
@@ -442,10 +464,6 @@ export default class TaskCreationController {
       root,
       getOptions: () => {
         const scheduledTime = normalizeReminderTime(scheduledInput.value)
-        const parsedEstimate = Number(estimateInput.value)
-        const estimatedMinutes = Number.isFinite(parsedEstimate) && parsedEstimate > 0
-          ? Math.round(parsedEstimate)
-          : undefined
         const reminderTime = reminderToggle.checked
           && scheduledTime
           ? this.calculateReminderTime(scheduledTime, defaultReminderMinutes)
@@ -454,7 +472,6 @@ export default class TaskCreationController {
           calendarEnabled && calendarToggle.checked
         return {
           scheduledTime,
-          estimatedMinutes,
           reminderTime,
           openCalendarAfterCreate,
         }
@@ -477,6 +494,16 @@ export default class TaskCreationController {
 
   private calculateReminderTime(scheduledTime: string, minutesBefore: number): string {
     return addMinutesToTime(scheduledTime, -minutesBefore)
+  }
+
+  private parseEstimatedMinutes(value: string): number | undefined | null {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return undefined
+    }
+
+    const minutes = Number(trimmed)
+    return Number.isInteger(minutes) && minutes >= 1 ? minutes : null
   }
 
   private async createNewTask(

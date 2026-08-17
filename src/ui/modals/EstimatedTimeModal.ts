@@ -37,7 +37,7 @@ export default class EstimatedTimeModal extends Modal {
       type: 'number',
       cls: 'form-input',
       value: this.instance.task.estimatedMinutes?.toString() ?? '',
-      attr: { min: '1', step: '5', placeholder: '30' },
+      attr: { min: '1', step: '1', inputmode: 'numeric', placeholder: '30' },
     })
     contentEl.createEl('p', {
       cls: 'modal-description',
@@ -56,8 +56,8 @@ export default class EstimatedTimeModal extends Modal {
         event.preventDefault()
         const raw = input.value.trim()
         const minutes = raw === '' ? undefined : Number(raw)
-        if (minutes !== undefined && (!Number.isFinite(minutes) || minutes <= 0)) {
-          new Notice(this.host.tv('forms.estimatedTimeInvalid', 'Enter a positive number of minutes'))
+        if (minutes !== undefined && (!Number.isInteger(minutes) || minutes <= 0)) {
+          new Notice(this.host.tv('forms.estimatedTimeInvalid', 'Enter a whole number of minutes greater than 0'))
           return
         }
         const file = this.host.app.vault.getAbstractFileByPath(this.instance.task.path)
@@ -67,7 +67,7 @@ export default class EstimatedTimeModal extends Modal {
         }
         await this.host.app.fileManager.processFrontMatter(file, (frontmatter) => {
           if (minutes === undefined) delete frontmatter.estimatedMinutes
-          else frontmatter.estimatedMinutes = Math.round(minutes)
+          else frontmatter.estimatedMinutes = minutes
         })
         await this.host.reloadTasksAndRestore({ runBoundaryCheck: false })
         new Notice(this.host.tv('forms.estimatedTimeUpdated', 'Estimated time updated'))
