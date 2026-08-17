@@ -103,6 +103,16 @@ export class SectionConfigService {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   }
 
+  getSlotCapacityMinutes(slotKey: string): number | null {
+    const index = this.slotKeysCache.indexOf(slotKey)
+    if (index < 0) return null
+    const start = this.boundaryMinutesCache[index]
+    const end = index + 1 < this.boundaryMinutesCache.length
+      ? this.boundaryMinutesCache[index + 1]
+      : 24 * 60
+    return end - start
+  }
+
   isValidSlotKey(slotKey: string): boolean {
     if (slotKey === 'none') return true
     return this.slotKeysCache.includes(slotKey)
