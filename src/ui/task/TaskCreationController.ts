@@ -28,6 +28,7 @@ interface TaskCreationAdvancedOptions {
   scheduledTime?: string
   reminderTime?: string | null
   openCalendarAfterCreate?: boolean
+  estimatedMinutes?: number
 }
 
 export interface TaskCreationControllerHost {
@@ -273,7 +274,6 @@ export default class TaskCreationController {
         } else {
           created = await this.createNewTask(
             taskName,
-            30,
             advancedOptions,
           )
         }
@@ -372,6 +372,23 @@ export default class TaskCreationController {
     scheduledGroup.appendChild(scheduledInput)
     body.appendChild(scheduledGroup)
 
+    const estimateGroup = doc.createElement("div")
+    estimateGroup.className = "task-creation-advanced-field"
+    const estimateLabel = doc.createElement("label")
+    estimateLabel.className = "form-label"
+    estimateLabel.textContent = this.withTrailingColon(
+      this.host.tv("addTask.estimatedMinutesLabel", "Estimated time (minutes)"),
+    )
+    const estimateInput = doc.createElement("input")
+    estimateInput.type = "number"
+    estimateInput.min = "1"
+    estimateInput.step = "5"
+    estimateInput.placeholder = "30"
+    estimateInput.className = "form-input task-creation-estimated-minutes"
+    estimateGroup.appendChild(estimateLabel)
+    estimateGroup.appendChild(estimateInput)
+    body.appendChild(estimateGroup)
+
     const defaultReminderMinutes = this.getDefaultReminderMinutes()
     const reminderRow = doc.createElement("label")
     reminderRow.className = "task-creation-toggle-row task-creation-reminder-row hidden"
@@ -425,16 +442,19 @@ export default class TaskCreationController {
       root,
       getOptions: () => {
         const scheduledTime = normalizeReminderTime(scheduledInput.value)
-        if (!scheduledTime) {
-          return undefined
-        }
+        const parsedEstimate = Number(estimateInput.value)
+        const estimatedMinutes = Number.isFinite(parsedEstimate) && parsedEstimate > 0
+          ? Math.round(parsedEstimate)
+          : undefined
         const reminderTime = reminderToggle.checked
+          && scheduledTime
           ? this.calculateReminderTime(scheduledTime, defaultReminderMinutes)
           : null
         const openCalendarAfterCreate =
           calendarEnabled && calendarToggle.checked
         return {
           scheduledTime,
+          estimatedMinutes,
           reminderTime,
           openCalendarAfterCreate,
         }
@@ -461,20 +481,22 @@ export default class TaskCreationController {
 
   private async createNewTask(
     taskName: string,
-    estimatedMinutes: number,
     options?: TaskCreationAdvancedOptions,
   ): Promise<boolean> {
     try {
       const dateStr = this.host.getCurrentDateString()
       const hasFrontmatterOptions = Boolean(
-        options?.scheduledTime || typeof options?.reminderTime === "string",
+        options?.scheduledTime || typeof options?.reminderTime === "string" || options?.estimatedMinutes,
       )
       const file = hasFrontmatterOptions
         ? await this.host.taskCreationService.createTaskFile(
           taskName,
           dateStr,
           options?.scheduledTime,
-          { reminderTime: typeof options?.reminderTime === "string" ? options.reminderTime : undefined },
+          {
+            reminderTime: typeof options?.reminderTime === "string" ? options.reminderTime : undefined,
+            estimatedMinutes: options?.estimatedMinutes,
+          },
         )
         : await this.host.taskCreationService.createTaskFile(taskName, dateStr)
       await this.waitForFrontmatter(file)
