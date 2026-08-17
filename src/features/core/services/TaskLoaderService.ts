@@ -28,6 +28,11 @@ interface TaskFrontmatterWithLegacy extends RoutineFrontmatter {
   reminder_time?: string
 }
 
+function normalizeEstimatedMinutes(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return undefined
+  return Math.round(value)
+}
+
 interface TaskExecutionEntry {
   taskTitle?: string
   taskName?: string
@@ -392,6 +397,7 @@ function createTaskFromExecutions(
       : undefined,
     routine_enabled: metadata?.routine_enabled,
     scheduledTime: getScheduledTime(metadata) || undefined,
+    estimatedMinutes: normalizeEstimatedMinutes(metadata?.estimatedMinutes),
     reminder_time: normalizeReminderTime(metadata?.reminder_time),
     taskId,
   }
@@ -451,6 +457,7 @@ async function createNonRoutineTask(
       : undefined,
     routine_enabled: isRoutineTask ? metadata?.routine_enabled : undefined,
     scheduledTime: getScheduledTime(metadata) || undefined,
+    estimatedMinutes: normalizeEstimatedMinutes(metadata?.estimatedMinutes),
     reminder_time: normalizeReminderTime(metadata?.reminder_time),
     taskId,
   }
@@ -664,6 +671,7 @@ async function createRoutineTask(
     routine_weeks: normalizeRoutineWeeks(metadata),
     routine_weekdays: normalizeRoutineWeekdays(metadata),
     scheduledTime: getScheduledTime(metadata) || undefined,
+    estimatedMinutes: normalizeEstimatedMinutes(metadata.estimatedMinutes),
     reminder_time: normalizeReminderTime(metadata.reminder_time),
     taskId,
   }
