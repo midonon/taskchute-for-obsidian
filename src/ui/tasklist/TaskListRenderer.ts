@@ -17,6 +17,7 @@ export type TaskListRendererHost = {
   applyResponsiveClasses: () => void
   sortTaskInstancesByTimeOrder: () => void
   getTimeSlotKeys: () => string[]
+  getSlotCapacityMinutes?: (slot: string) => number | null
   sortByOrder: (instances: TaskInstance[]) => TaskInstance[]
   selectTaskForKeyboard: (inst: TaskInstance, element: HTMLElement) => void
   registerManagedDomEvent: (target: Document | HTMLElement, event: string, handler: EventListener) => void
@@ -223,8 +224,10 @@ export default class TaskListRenderer {
         this.toggleSlotCollapse(slot)
       })
     } else {
-      header.textContent = slot
+      header.createSpan({ cls: 'tc-slot-label', text: slot })
     }
+
+    this.renderSlotCapacity(header, slot, instances)
 
     this.setupTimeSlotDragHandlers(header, slot)
 
@@ -260,11 +263,31 @@ export default class TaskListRenderer {
     this.rowController.renderTaskName(taskItem, inst)
     this.actions.renderProject(taskItem, inst)
     this.rowController.renderTimeRangeDisplay(taskItem, inst)
+    this.rowController.renderEstimateDisplay(taskItem, inst)
     this.rowController.renderDurationDisplay(taskItem, inst)
     this.actions.renderCommentButton(taskItem, inst)
     this.actions.renderRoutineButton(taskItem, inst)
     this.actions.renderSettingsButton(taskItem, inst)
     this.setupTaskItemEventListeners(taskItem, inst)
+  }
+
+  private renderSlotCapacity(header: HTMLElement, slot: string, instances: TaskInstance[]): void {
+    const capacity = this.host.getSlotCapacityMinutes?.(slot) ?? null
+    if (capacity == null) return
+    const estimated = instances.reduce((sum, instance) => sum + (instance.task.estimatedMinutes ?? 0), 0)
+    const remaining = capacity - estimated
+    const status = remaining < 0 ? 'over' : remaining === 0 ? 'full' : 'available'
+    const summary = header.createSpan({
+      cls: `tc-slot-capacity tc-slot-capacity--${status}`,
+      text: `${estimated}/${capacity}${this.host.tv('labels.minutesShort', 'm')}`,
+    })
+    summary.setAttribute('title', remaining < 0
+      ? this.host.tv('labels.sectionOverCapacity', 'Over capacity by {minutes} minutes', { minutes: Math.abs(remaining) })
+      : this.host.tv('labels.sectionRemaining', '{minutes} minutes remaining', { minutes: remaining }))
+    const track = header.createSpan({ cls: 'tc-slot-capacity-track' })
+    const fill = track.createSpan({ cls: `tc-slot-capacity-fill tc-slot-capacity-fill--${status}` })
+    const percentage = capacity > 0 ? Math.min(100, Math.round((estimated / capacity) * 100)) : 0
+    fill.style.width = `${percentage}%`
   }
 
   private createDragHandle(taskItem: HTMLElement, inst: TaskInstance, slot: string, idx: number): void {
