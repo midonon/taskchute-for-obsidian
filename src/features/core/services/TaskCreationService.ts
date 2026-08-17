@@ -14,6 +14,7 @@ export interface CreateTaskFileOptions {
   taskId?: string
   basename?: string
   reminderTime?: string
+  estimatedMinutes?: number
 }
 
 export class TaskCreationService {
@@ -77,6 +78,9 @@ export class TaskCreationService {
     }
     if (options?.reminderTime) {
       frontmatterLines.push(`reminder_time: "${options.reminderTime}"`)
+    }
+    if (typeof options?.estimatedMinutes === 'number' && options.estimatedMinutes > 0) {
+      frontmatterLines.push(`estimatedMinutes: ${Math.round(options.estimatedMinutes)}`)
     }
 
     frontmatterLines.push('---')
