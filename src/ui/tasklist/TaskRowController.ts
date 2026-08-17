@@ -256,6 +256,19 @@ export default class TaskRowController {
     }
   }
 
+  renderEstimateDisplay(taskItem: HTMLElement, inst: TaskInstance): void {
+    if (!inst.task.estimatedMinutes) return
+    taskItem.createSpan({
+      cls: 'task-estimate',
+      text: `${this.host.tv('labels.estimateShort', 'Est.')} ${inst.task.estimatedMinutes}${this.host.tv('labels.minutesShort', 'm')}`,
+      attr: {
+        title: this.host.tv('labels.estimatedTime', 'Estimated time: {minutes} minutes', {
+          minutes: inst.task.estimatedMinutes,
+        }),
+      },
+    })
+  }
+
   updateTimerDisplay(timerEl: HTMLElement, inst: TaskInstance): void {
     if (!inst.startTime) return
     const now = new Date()
