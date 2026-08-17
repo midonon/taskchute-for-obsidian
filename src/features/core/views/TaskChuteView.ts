@@ -64,6 +64,7 @@ import { RecipeService, createRecipeProgressKeyForInstance } from "../../recipe/
 import { RecipeRunPopover } from "../../recipe/ui/RecipeRunPopover"
 import { RecipeSelectModal } from "../../recipe/modals/RecipeSelectModal"
 import RecipeManagerModal from "../../recipe/modals/RecipeManagerModal"
+import EstimatedTimeModal from "../../../ui/modals/EstimatedTimeModal"
 
 class NavigationStateManager implements NavigationState {
   selectedSection: "routine" | "recipes" | "review" | "log" | "settings" | null = null
@@ -400,6 +401,8 @@ export class TaskChuteView
       resetTaskToIdle: (inst) => this.resetTaskToIdle(inst),
       showScheduledTimeEditModal: (inst) =>
         this.showScheduledTimeEditModal(inst),
+      showEstimatedTimeEditModal: (inst) =>
+        this.showEstimatedTimeEditModal(inst),
       showTaskMoveDatePicker: (inst, anchor) =>
         this.taskScheduleController.showTaskMoveDatePicker(inst, anchor),
       duplicateInstance: (inst) => this.duplicateInstance(inst, true),
@@ -501,6 +504,7 @@ export class TaskChuteView
       applyResponsiveClasses: () => view.applyResponsiveClasses(),
       sortTaskInstancesByTimeOrder: () => view.sortTaskInstancesByTimeOrder(),
       getTimeSlotKeys: () => view.getTimeSlotKeys(),
+      getSlotCapacityMinutes: (slot) => view.sectionConfig.getSlotCapacityMinutes(slot),
       sortByOrder: (instances) => view.sortByOrder(instances),
       selectTaskForKeyboard: (inst, element) =>
         view.taskSelectionController.select(inst, element),
@@ -1955,6 +1959,14 @@ export class TaskChuteView
 
   private showScheduledTimeEditModal(inst: TaskInstance): void {
     this.taskTimeController.showScheduledTimeEditModal(inst)
+  }
+
+  private showEstimatedTimeEditModal(inst: TaskInstance): void {
+    new EstimatedTimeModal({
+      tv: (key, fallback, vars) => this.tv(key, fallback, vars),
+      app: this.app,
+      reloadTasksAndRestore: (options) => this.reloadTasksAndRestore(options),
+    }, inst).open()
   }
 
   private showStartTimePopup(inst: TaskInstance, anchor: HTMLElement): void {
