@@ -13,7 +13,8 @@ TaskChute Plusは、今やることを決め、実行し、実績を残すため
 - タスク行から見積時間を直接編集
 - 完了タスクでは、見積時間と実績時間を並べて表示
 - 時間帯セクションごとに、見積時間の合計、容量、使用率バー、容量到達／超過の警告を表示
-<img width="1779" height="780" alt="image" src="https://github.com/user-attachments/assets/b32a8047-126d-47ce-a8f1-c1309a92c20c" />
+<img width="1782" height="769" alt="image" src="https://github.com/user-attachments/assets/96f872f1-7b94-4d32-a0e6-50c45bf118e3" />
+
 
 
 ## 導入
