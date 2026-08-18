@@ -2,21 +2,19 @@
 
 [日本語](./README.ja.md)
 
-TaskChute Plus is an Obsidian plugin for execution-first task management.
+TaskChute Plus is an Obsidian plugin for deciding what to do now, carrying it out, and keeping a record of the results.
 
-This is a maintained fork of [hiroyaiizuka/taskchute-for-obsidian](https://github.com/hiroyaiizuka/taskchute-for-obsidian). It focuses on a practical question: can today's task estimates fit in the time that is actually available?
+This repository is a fork of [hiroyaiizuka/taskchute-for-obsidian](https://github.com/hiroyaiizuka/taskchute-for-obsidian) that adds task estimates and capacity for each time section. It makes it easier to check whether task estimates fit when arranging a day's schedule.
 
 ## What's different in this fork
 
-- Store a planned duration for each task in `estimatedMinutes` frontmatter.
-- Enter the estimate in the basic new-task form.
-- Edit an estimate directly from the task row, including when it is not set.
-- Show labelled estimate and actual time together for completed tasks.
-- Compare each time slot's total estimate with its capacity.
-- Indicate available, full, and over-capacity slots with a utilisation bar.
-- Provide Japanese and English UI text for the added controls.
+- Store an estimate in task frontmatter as `estimatedMinutes`.
+- Enter an estimate as a basic field when creating a task.
+- Edit an estimate directly from a task row.
+- Show estimate and actual time side by side for completed tasks.
+- Show each time section's total estimated time, capacity, utilisation bar, and warnings when capacity is reached or exceeded.
 
-The estimate and capacity features are still being refined through daily use. The next area under consideration is configurable section profiles, such as weekday and weekend slot layouts. See the changelog for the full list of unreleased changes.
+<img width="1782" height="769" alt="TaskChute Plus view showing task estimates, actual time, and time-section capacity" src="https://github.com/user-attachments/assets/96f872f1-7b94-4d32-a0e6-50c45bf118e3" />
 
 ## Install
 
@@ -59,7 +57,7 @@ estimatedMinutes: 30
 # Prepare weekly review
 ```
 
-A time-slot header compares the sum of task estimates with its duration. For example, `60/240m` means 60 estimated minutes in a 240-minute slot.
+A time-section header compares the sum of task estimates with the section duration. For example, `60/240m` means that a 240-minute time section contains 60 estimated minutes.
 
 ## Upstream
 
