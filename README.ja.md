@@ -1,128 +1,90 @@
 # TaskChute Plus
 
-[English](./README.md) | [日本語](./README.ja.md)
+[English](./README.md)
 
-**タスクを整理するだけでなく、実行するためのプラグイン。**
+TaskChute Plusは、今やることを決め、実行し、実績を残すためのObsidianプラグインです。
 
-TaskChute Plus は、実行重視のタスク管理を Obsidian 上で行うためのプラグインです。  
-「今やること」を決めて実行し、実績ログを蓄積して改善につなげます。
+このリポジトリは、[hiroyaiizuka/taskchute-for-obsidian](https://github.com/hiroyaiizuka/taskchute-for-obsidian)をもとに、見積時間と時間帯ごとの容量を扱えるようにしたForkです。一日の予定を並べたときに、見積時間が収まるかを確かめやすくしています。
 
-## できること
+## 追加している機能
 
-- 日付ナビゲーション付きの TaskChute ビューで当日のタスクを管理
-- タスクの開始/停止と実作業時間の記録
-- カスタム可能な時間帯スロット + `時間指定なし` での表示
-- ルーチン（毎日/毎週/毎月）の作成と運用
-- タスクインスタンスの移動・複製・リセット・削除（day state 永続化）
-- タスクとプロジェクトの紐づけ、およびプロジェクトボード表示
-- 実行ログと年次ヒートマップの確認
-- タスクごとのリマインダー設定
-- Google Calendar URL スキームへのエクスポート
-- 日本語/英語 UI（または Obsidian 言語設定に追従）
+- タスクのfrontmatterに `estimatedMinutes` として見積時間を保存
+- 新規タスクの基本項目として見積時間を入力
+- 見積未設定の `見積 -` も含め、タスク行から見積時間を直接編集
+- 完了タスクでは、見積時間と実績時間を並べて表示
+- 時間帯セクションごとに、見積合計、容量、使用率バー、容量到達／超過の警告を表示
+- 見積時間と容量表示を日本語／英語で表示
 
-## コマンド
+見積時間と容量の機能は、実際に使いながら調整中です。次は、平日と休日で時間帯の構成を切り替える機能を検討しています。未リリースの変更は[変更履歴](./CHANGELOG.md)にまとめています。
 
-Obsidian のコマンドパレットから利用できます。
+## 導入
 
-- `Open TaskChute`
-- `TaskChute settings`
-- `Show today's tasks`
-- `Reorganize idle tasks to current slot`
-- `Duplicate selected task`（TaskChuteビューがアクティブ時）
-- `Delete selected task`（TaskChuteビューがアクティブ時）
-- `Reset selected task`（TaskChuteビューがアクティブ時）
+### GitHub Releaseから導入する場合
 
-## はじめ方
+Releaseがある場合は、main.js、manifest.json、styles.cssをダウンロードします。Vault内のtaskchute-plusプラグインディレクトリへコピーしてから、Obsidianで有効にしてください。
 
-### Obsidian へのインストール
+### ソースからビルドする場合
 
-1. `Settings -> Community plugins` を開く
-2. `TaskChute Plus` をインストールして有効化
-3. `Open TaskChute` コマンドを実行
+開発ブランチを試す場合や、GitHub Releaseがまだない場合はこちらを使います。
 
-### 最初のタスク
+```bash
+git clone https://github.com/midonon/taskchute-for-obsidian.git
+cd taskchute-for-obsidian
+npm install
+npm run build
+```
 
-TaskChute の UI から作成するか、タスクフォルダに手動でノートを作成します。
+次のファイルを、Vault内のtaskchute-plusプラグインディレクトリへコピーします。
 
-最小の手動例:
+- main.js
+- manifest.json
+- styles.css
+
+Obsidianのコミュニティプラグイン設定でTaskChute Plusを有効にします。これはローカルに配置したプラグインを有効にする手順で、コミュニティプラグイン一覧への掲載とは別のものです。
+
+## 見積時間とセクション容量
+
+新規タスク作成時に見積時間を入れるか、タスク行の見積テキストを選択して編集します。空欄で保存すれば見積時間を削除できます。
 
 ```md
 ---
 tags:
   - task
-target_date: "2026-04-16"
-scheduled_time: "09:00"
+target_date: 2026-04-16
+scheduled_time: 09:00
+estimatedMinutes: 30
 ---
 
-# オンライン診療
+# 週次レビューの準備
 ```
 
-互換性のため、本文中の `#task` タグ検出もサポートしています。
+時間帯セクションのヘッダーでは、所属タスクの見積合計とセクションの長さを比べます。たとえば`60/240m`は、240分の時間帯に60分の見積が入っている状態です。
 
-## 設定概要
+## 本家について
 
-`TaskChute settings` で次を設定できます。
-
-- 保存先モード（`vaultRoot` / `specifiedFolder`）
-- プロジェクトフォルダ（任意・独立パス）
-- レビューテンプレートパスとファイル名パターン
-- 言語上書き（`auto`, `en`, `ja`）
-- 既定リマインダー分数
-- 実行ログスナップショットのバックアップ間隔/保持期間
-- カスタム時間帯境界と時間帯折りたたみUI
-- Google Calendar エクスポート既定値
-
-現行コードのデフォルト値:
-
-- `backupIntervalHours: 2`
-- `backupRetentionDays: 1`
-- `defaultReminderMinutes: 5`
-- `locationMode: vaultRoot`
-
-## デフォルトの保存パス
-
-`vaultRoot` モードでは、TaskChute 管理フォルダは次になります。
-
-- `TaskChute/Task`
-- `TaskChute/Log`
-- `TaskChute/Review`
-
-`projectsFolder` はデフォルトで未設定です（必要時に個別指定）。
+日々のタスク管理、コマンド、設定、公式版の配布については、[本家リポジトリ](https://github.com/hiroyaiizuka/taskchute-for-obsidian)を参照してください。公式プラグインの配布は本家作者が担当します。このForkをObsidianのコミュニティプラグイン一覧へ別プラグインとして申請する予定はありません。
 
 ## 開発
 
-### 要件
-
-- Node.js 18+
-- npm
-
-### セットアップ
+Node.js 18以上とnpmが必要です。
 
 ```bash
 npm install
+npm run typecheck
+npm test
+npm run lint
+npm run build
 ```
 
-### スクリプト
+ローカル開発では、`npm run dev`でesbuildのwatchモードを起動できます。
 
-```bash
-npm run dev       # esbuild watch
-npm run build     # production bundle
-npm run lint      # eslint for src/tests
-npm test          # jest
-```
+## フィードバック
 
-### リリース成果物
+このForkへの不具合報告や提案は、[Issue](https://github.com/midonon/taskchute-for-obsidian/issues)へお願いします。
 
-Obsidian はプラグインルートの以下を読み込みます。
+## ライセンスとクレジット
 
-- `main.js`
-- `manifest.json`
-- `styles.css`
+このリポジトリは[MIT License](./LICENSE)の下で公開します。本家プロジェクトの著作権表示とライセンス表示は保持しています。
 
-## ライセンス
-
-MIT
-
-## 作者
-
-Hiroya Iizuka
+- 本家作者: [Hiroya Iizuka](https://github.com/hiroyaiizuka)
+- Fork保守: [midonon](https://github.com/midonon)

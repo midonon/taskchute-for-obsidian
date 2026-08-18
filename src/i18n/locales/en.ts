@@ -508,6 +508,7 @@ export const en = {
     },
     labels: {
       estimateShort: "Est.",
+      estimateUnset: "-",
       actualShort: "Actual",
       // eslint-disable-next-line obsidianmd/ui/sentence-case-locale-module -- Unit abbreviations are intentionally lowercase.
       minutesShort: "m",

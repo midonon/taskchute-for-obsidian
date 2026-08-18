@@ -181,7 +181,7 @@ describe('TaskRowController', () => {
     expect(container.querySelector('.task-duration')?.textContent).toBe('実績 18m')
   })
 
-  test('renderEstimateDisplay opens the estimate editor from a keyboard-accessible button', () => {
+  test('renderEstimateDisplay opens the estimate editor from keyboard-accessible text', () => {
     const host = createHost()
     const controller = new TaskRowController(host)
     const container = document.createElement('div')
@@ -196,12 +196,41 @@ describe('TaskRowController', () => {
     })
 
     controller.renderEstimateDisplay(container, instance)
-    const button = container.querySelector('.task-estimate') as HTMLButtonElement
+    const estimateText = container.querySelector('.task-estimate') as HTMLElement
 
-    expect(button?.tagName).toBe('BUTTON')
-    expect(button?.type).toBe('button')
-    button.click()
+    expect(estimateText?.tagName).toBe('SPAN')
+    expect(estimateText?.getAttribute('role')).toBe('button')
+    expect(estimateText?.tabIndex).toBe(0)
+    estimateText.click()
 
     expect(host.showEstimatedTimeEditModal).toHaveBeenCalledWith(instance)
+  })
+
+  test('renderEstimateDisplay keeps editable text when the estimate is unset', () => {
+    const host = createHost({
+      tv: (key, fallback) => {
+        if (key === 'labels.estimateShort') return '見積'
+        if (key === 'labels.estimateUnset') return '-'
+        return fallback
+      },
+    })
+    const controller = new TaskRowController(host)
+    const container = document.createElement('div')
+    attachCreateEl(container)
+    const instance = createInstance()
+
+    controller.renderEstimateDisplay(container, instance)
+    const estimateText = container.querySelector('.task-estimate') as HTMLElement
+
+    expect(estimateText?.tagName).toBe('SPAN')
+    expect(estimateText?.textContent).toBe('見積 -')
+    expect(estimateText?.getAttribute('role')).toBe('button')
+    expect(estimateText?.tabIndex).toBe(0)
+    expect(estimateText?.getAttribute('aria-label')).toBe('Set estimated time')
+    estimateText.click()
+    estimateText.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+
+    expect(host.showEstimatedTimeEditModal).toHaveBeenCalledTimes(2)
+    expect(host.showEstimatedTimeEditModal).toHaveBeenLastCalledWith(instance)
   })
 })

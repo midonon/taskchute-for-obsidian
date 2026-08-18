@@ -257,21 +257,35 @@ export default class TaskRowController {
   }
 
   renderEstimateDisplay(taskItem: HTMLElement, inst: TaskInstance): void {
-    if (!inst.task.estimatedMinutes) return
-    const estimateButton = taskItem.createEl('button', {
+    const estimatedMinutes = inst.task.estimatedMinutes
+    const hasEstimate = typeof estimatedMinutes === 'number' && estimatedMinutes > 0
+    const estimateText = hasEstimate
+      ? `${estimatedMinutes}${this.host.tv('labels.minutesShort', 'm')}`
+      : this.host.tv('labels.estimateUnset', '-')
+    const estimateTitle = hasEstimate
+      ? this.host.tv('labels.estimatedTime', 'Estimated time: {minutes} minutes', {
+          minutes: estimatedMinutes,
+        })
+      : this.host.tv('buttons.setEstimatedTime', 'Set estimated time')
+    const estimateTextEl = taskItem.createSpan({
       cls: 'task-estimate',
-      text: `${this.host.tv('labels.estimateShort', 'Est.')} ${inst.task.estimatedMinutes}${this.host.tv('labels.minutesShort', 'm')}`,
+      text: `${this.host.tv('labels.estimateShort', 'Est.')} ${estimateText}`,
       attr: {
-        type: 'button',
-        title: this.host.tv('labels.estimatedTime', 'Estimated time: {minutes} minutes', {
-          minutes: inst.task.estimatedMinutes,
-        }),
-        'aria-label': this.host.tv('buttons.setEstimatedTime', 'Set estimated time'),
+        role: 'button',
+        tabindex: '0',
+        title: estimateTitle,
+        'aria-label': estimateTitle,
       },
     })
-    this.registerTapEvent(estimateButton, (event) => {
+    const openEstimateEditor = (event: Event) => {
       event.stopPropagation()
       this.host.showEstimatedTimeEditModal(inst)
+    }
+    this.registerTapEvent(estimateTextEl, openEstimateEditor)
+    estimateTextEl.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      openEstimateEditor(event)
     })
   }
 

@@ -506,6 +506,7 @@ export const ja = {
     },
     labels: {
       estimateShort: "見積",
+      estimateUnset: "-",
       actualShort: "実績",
       minutesShort: "m",
       estimatedTime: "見積時間: {minutes}分",

@@ -336,7 +336,7 @@ describe('TaskListRenderer', () => {
     expect(button?.classList.contains('active')).toBe(true);
   });
 
-  test('renders estimate as a direct-edit button and groups row actions', () => {
+  test('renders estimate as direct-edit text and groups row actions', () => {
     const instance = createInstance({
       task: {
         name: 'Estimated Task',
@@ -352,14 +352,15 @@ describe('TaskListRenderer', () => {
     renderer.render()
 
     const item = taskList.querySelector('.task-item') as HTMLElement
-    const estimateButton = item.querySelector('.task-estimate') as HTMLButtonElement
+    const estimateText = item.querySelector('.task-estimate') as HTMLElement
     const actions = item.querySelector('.task-item-actions') as HTMLElement
-    expect(estimateButton?.tagName).toBe('BUTTON')
+    expect(estimateText?.tagName).toBe('SPAN')
+    expect(estimateText?.getAttribute('role')).toBe('button')
     expect(actions).toBeTruthy()
     expect(actions.querySelector('.routine-button')).toBeTruthy()
     expect(actions.querySelector('.settings-task-button')).toBeTruthy()
 
-    estimateButton.click()
+    estimateText.click()
     expect(host.showEstimatedTimeEditModal).toHaveBeenCalledWith(instance)
   });
 });
