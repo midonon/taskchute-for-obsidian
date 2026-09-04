@@ -48,6 +48,7 @@ export interface CreateTaskFileOptions {
   taskId?: string
   basename?: string
   reminderTime?: string
+  estimatedMinutes?: number
   /** Present only when the add-task modal submitted in AI mode */
   aiTask?: CreateTaskFileAiTaskOptions
 }
@@ -151,6 +152,14 @@ export class TaskCreationService {
     }
     if (options?.reminderTime) {
       frontmatterLines.push(`reminder_time: "${options.reminderTime}"`)
+    }
+    const estimatedMinutes = options?.estimatedMinutes
+    if (
+      typeof estimatedMinutes === 'number' &&
+      Number.isInteger(estimatedMinutes) &&
+      estimatedMinutes > 0
+    ) {
+      frontmatterLines.push(`estimatedMinutes: ${estimatedMinutes}`)
     }
 
     const aiTask = options?.aiTask

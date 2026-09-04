@@ -1,5 +1,4 @@
-import { App, Notice } from 'obsidian'
-import type { TFile } from "obsidian"
+import { App, Notice, TFile } from 'obsidian'
 import { t } from "../../i18n"
 import {
   TaskNameAutocomplete,
@@ -69,6 +68,7 @@ interface TaskCreationAdvancedOptions {
   scheduledTime?: string
   reminderTime?: string | null
   openCalendarAfterCreate?: boolean
+  estimatedMinutes?: number
 }
 
 export interface TaskCreationControllerHost {
@@ -289,8 +289,42 @@ export default class TaskCreationController {
     restoreBanner.appendChild(restoreMessage)
     restoreBanner.appendChild(restoreButton)
 
+    const estimateGroup = editTarget ? null : doc.win.createDiv()
+    const estimateInput = editTarget ? null : doc.win.createEl("input")
+    if (estimateGroup && estimateInput) {
+      estimateGroup.className = "form-group task-creation-estimate-group"
+      const estimateLabel = doc.win.createEl("label")
+      estimateLabel.className = "form-label"
+      estimateLabel.textContent = this.host.tv(
+        "addTask.estimatedMinutesLabel",
+        "Estimated time",
+      )
+      const estimateField = doc.win.createDiv()
+      estimateField.className = "task-creation-estimate-input"
+      estimateInput.type = "number"
+      estimateInput.inputMode = "numeric"
+      estimateInput.min = "1"
+      estimateInput.step = "1"
+      estimateInput.placeholder = "30"
+      estimateInput.className = "form-input task-creation-estimated-minutes"
+      estimateInput.setAttribute("inputmode", "numeric")
+      const estimateUnit = doc.win.createSpan()
+      estimateUnit.className = "task-creation-estimate-unit"
+      estimateUnit.textContent = this.host.tv(
+        "addTask.estimatedMinutesUnit",
+        "min",
+      )
+      estimateField.appendChild(estimateInput)
+      estimateField.appendChild(estimateUnit)
+      estimateGroup.appendChild(estimateLabel)
+      estimateGroup.appendChild(estimateField)
+    }
+
     const advancedControls = editTarget ? null : this.createAdvancedControls(doc)
 
+    if (estimateGroup) {
+      form.insertBefore(estimateGroup, nameGroup.nextSibling)
+    }
     form.insertBefore(restoreBanner, buttonGroup ?? null)
     if (advancedControls) {
       form.insertBefore(advancedControls.root, restoreBanner)
@@ -319,7 +353,14 @@ export default class TaskCreationController {
         : undefined,
     )
     if (aiControls) {
-      form.insertBefore(aiControls.typeGroup, nameGroup.nextSibling)
+      // Keep the estimate immediately below the task name even when the AI
+      // selector is present in the add-task modal.
+      if (estimateGroup) {
+        form.insertBefore(estimateGroup, nameGroup.nextSibling)
+        form.insertBefore(aiControls.typeGroup, estimateGroup.nextSibling)
+      } else {
+        form.insertBefore(aiControls.typeGroup, nameGroup.nextSibling)
+      }
       form.insertBefore(aiControls.section, aiControls.typeGroup.nextSibling)
     }
 
@@ -462,6 +503,20 @@ export default class TaskCreationController {
           return
         }
 
+        const estimatedMinutes = estimateInput
+          ? this.parseEstimatedMinutes(estimateInput.value)
+          : undefined
+        if (estimatedMinutes === null) {
+          new Notice(
+            this.host.tv(
+              "forms.estimatedTimeInvalid",
+              "Enter a whole number of minutes greater than 0",
+            ),
+          )
+          estimateInput?.focus()
+          return
+        }
+
         if (editTarget) {
           if (!aiControls) {
             new Notice(
@@ -523,12 +578,16 @@ export default class TaskCreationController {
           selectedSuggestion?.type === "task" &&
           selectedSuggestion.path
         ) {
-          created = await this.reuseExistingTask(selectedSuggestion.path, advancedOptions)
+          const creationOptions = estimatedMinutes === undefined
+            ? advancedOptions
+            : { ...advancedOptions, estimatedMinutes }
+          created = await this.reuseExistingTask(selectedSuggestion.path, creationOptions)
         } else {
           created = await this.createNewTask(
             taskName,
-            30,
-            advancedOptions,
+            estimatedMinutes === undefined
+              ? advancedOptions
+              : { ...advancedOptions, estimatedMinutes },
             aiMode ? aiControls?.getAiTaskOptions() : undefined,
           )
         }
@@ -1518,9 +1577,18 @@ export default class TaskCreationController {
     return addMinutesToTime(scheduledTime, -minutesBefore)
   }
 
+  private parseEstimatedMinutes(value: string): number | undefined | null {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return undefined
+    }
+
+    const minutes = Number(trimmed)
+    return Number.isInteger(minutes) && minutes >= 1 ? minutes : null
+  }
+
   private async createNewTask(
     taskName: string,
-    estimatedMinutes: number,
     options?: TaskCreationAdvancedOptions,
     aiTask?: CreateTaskFileAiTaskOptions,
   ): Promise<boolean> {
@@ -1528,7 +1596,9 @@ export default class TaskCreationController {
       const dateStr = this.host.getCurrentDateString()
       const hasFrontmatterOptions =
         Boolean(
-          options?.scheduledTime || typeof options?.reminderTime === "string",
+          options?.scheduledTime ||
+            typeof options?.reminderTime === "string" ||
+            typeof options?.estimatedMinutes === "number",
         ) || aiTask !== undefined
       const file = hasFrontmatterOptions
         ? await this.host.taskCreationService.createTaskFile(
@@ -1537,6 +1607,9 @@ export default class TaskCreationController {
           options?.scheduledTime,
           {
             reminderTime: typeof options?.reminderTime === "string" ? options.reminderTime : undefined,
+            ...(typeof options?.estimatedMinutes === "number"
+              ? { estimatedMinutes: options.estimatedMinutes }
+              : {}),
             aiTask,
           },
         )
@@ -1569,12 +1642,36 @@ export default class TaskCreationController {
     }
   }
 
+  private async updateExistingTaskEstimate(
+    filePath: string,
+    estimatedMinutes: number,
+  ): Promise<void> {
+    const file = this.host.app.vault.getAbstractFileByPath(filePath)
+    if (!(file instanceof TFile)) {
+      throw new Error("Task file not found")
+    }
+
+    await this.host.app.fileManager.processFrontMatter(
+      file,
+      (frontmatter: Record<string, unknown>) => {
+        frontmatter.estimatedMinutes = estimatedMinutes
+      },
+    )
+  }
+
   private async reuseExistingTask(
     filePath: string,
     options?: TaskCreationAdvancedOptions,
   ): Promise<boolean> {
     try {
       const dateStr = this.host.getCurrentDateString()
+      const estimatedMinutes = options?.estimatedMinutes
+      if (estimatedMinutes !== undefined) {
+        if (!Number.isInteger(estimatedMinutes) || estimatedMinutes <= 0) {
+          throw new Error("Estimated minutes must be a positive integer")
+        }
+        await this.updateExistingTaskEstimate(filePath, estimatedMinutes)
+      }
       const alreadyVisible = this.host.hasInstanceForPathToday(filePath)
       let target: CreatedTaskTarget | null = null
       if (alreadyVisible) {

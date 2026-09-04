@@ -6,6 +6,7 @@ export interface TaskSettingsTooltipHost {
   tv: (key: string, fallback: string, vars?: Record<string, string | number>) => string
   resetTaskToIdle: (inst: TaskInstance) => Promise<void>
   showScheduledTimeEditModal: (inst: TaskInstance) => void | Promise<void>
+  showEstimatedTimeEditModal?: (inst: TaskInstance) => void | Promise<void>
   showTaskMoveDatePicker: (inst: TaskInstance, anchor: HTMLElement) => void
   duplicateInstance: (inst: TaskInstance) => Promise<TaskInstance | void>
   deleteRoutineTask: (inst: TaskInstance) => Promise<void>
@@ -47,6 +48,7 @@ export default class TaskSettingsTooltipController {
     this.appendProject(inst, tooltip)
     this.appendRecipe(inst, tooltip)
     this.appendStartTime(inst, tooltip)
+    this.appendEstimatedTime(inst, tooltip)
     this.appendReminder(inst, tooltip)
     this.appendGoogleCalendar(inst, tooltip)
 
@@ -189,6 +191,23 @@ export default class TaskSettingsTooltipController {
         tooltip.remove()
         await this.host.showScheduledTimeEditModal(inst)
       })()
+    })
+  }
+
+  private appendEstimatedTime(inst: TaskInstance, tooltip: HTMLElement): void {
+    if (!this.host.showEstimatedTimeEditModal) return
+    const suffix = inst.task.estimatedMinutes
+      ? ` (${inst.task.estimatedMinutes}${this.host.tv('labels.minutesShort', 'm')})`
+      : ''
+    const item = tooltip.createDiv({
+      cls: 'tooltip-item',
+      text: `${this.host.tv('buttons.setEstimatedTime', 'Set estimated time')}${suffix}`,
+      attr: { title: this.host.tv('forms.estimatedTimeInfo', 'Leave empty to clear the estimate.') },
+    })
+    item.addEventListener('click', (event) => {
+      event.stopPropagation()
+      tooltip.remove()
+      void this.host.showEstimatedTimeEditModal?.(inst)
     })
   }
 

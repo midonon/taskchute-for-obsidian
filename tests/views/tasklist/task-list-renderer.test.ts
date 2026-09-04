@@ -138,7 +138,65 @@ describe('TaskListRenderer', () => {
     expect(items).toHaveLength(3);
     expect(taskList.querySelector('[data-instance-id="run-1"] .task-timer-display')).toBeTruthy();
     const duration = taskList.querySelector('[data-instance-id="done-1"] .task-duration');
-    expect(duration?.textContent).toBe('01:15');
+    expect(duration?.textContent).toBe('Actual 75m');
+  });
+
+  test.each([
+    [180, 'available'],
+    [240, 'full'],
+    [300, 'over'],
+  ])('renders section estimates %i with status %s', (minutes, status) => {
+    const inst = createInstance();
+    Object.assign(inst.task, { estimatedMinutes: minutes });
+    const { host, taskList, renderer } = createHost([inst]);
+    Object.assign(host, { getSlotCapacityMinutes: () => 240 });
+
+    renderer.render();
+
+    const header = Array.from(taskList.querySelectorAll('.time-slot-header'))
+      .find((el) => el.querySelector('.tc-slot-label')?.textContent === '8:00-12:00');
+    const summary = header?.querySelector(`.tc-slot-capacity--${status}`);
+    expect(summary?.textContent).toBe(`${minutes}/240m`);
+    expect(header?.querySelector('.tc-slot-capacity-fill')?.getAttribute('style'))
+      .toContain(`${Math.min(100, Math.round(minutes / 240 * 100))}%`);
+    expect(taskList.querySelector('.time-slot-header.other .tc-slot-capacity')).toBeNull();
+  });
+
+  test.each([undefined, 30])('renders a plain editable estimate for %s minutes', (minutes) => {
+    const inst = createInstance();
+    Object.assign(inst.task, { estimatedMinutes: minutes });
+    const { host, taskList, renderer } = createHost([inst]);
+    const edit = jest.fn();
+    Object.assign(host, { showEstimatedTimeEditModal: edit });
+
+    renderer.render();
+
+    const estimate = taskList.querySelector('.task-estimate') as HTMLElement;
+    expect(estimate).not.toBeNull();
+    expect(estimate.tagName).toBe('SPAN');
+    expect(estimate.textContent).toBe(minutes ? 'Est. 30m' : 'Est. -');
+    expect(estimate.closest('.task-item__main')).not.toBeNull();
+    estimate.click();
+    expect(edit).toHaveBeenCalledWith(inst);
+    estimate.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    estimate.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(edit).toHaveBeenCalledTimes(3);
+  });
+
+  test('capacity still includes hidden board tasks', () => {
+    const human = createInstance();
+    human.task.estimatedMinutes = 30;
+    const ai = createInstance({ instanceId: 'ai' });
+    ai.task.estimatedMinutes = 60;
+    ai.task.frontmatter = { ai_task: true };
+    const { host, taskList, renderer } = createHost([human, ai]);
+    host.getAiTaskBoardView = () => 'human';
+    host.getSlotCapacityMinutes = () => 240;
+    renderer.render();
+    expect(taskList.querySelectorAll('.task-item')).toHaveLength(1);
+    const header = Array.from(taskList.querySelectorAll('.time-slot-header'))
+      .find((el) => el.querySelector('.tc-slot-label')?.textContent === '8:00-12:00');
+    expect(header?.querySelector('.tc-slot-capacity')?.textContent).toBe('90/240m');
   });
 
   test('the row keeps its text in one column and its controls beside it', () => {

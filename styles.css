@@ -3188,6 +3188,99 @@ body.is-phone .taskchute-modal .modal-button-container {
   border-bottom: none;
 }
 
+/* Reserve the same timing columns on every desktop row. The surrounding row
+   retains upstream's flex layout and its touch-friendly trailing controls. */
+.task-item__timing {
+  display: grid;
+  grid-template-columns: 15ch 11ch 12ch;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.task-creation-estimate-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-creation-estimate-input .form-input {
+  width: 8em;
+  max-width: 100%;
+}
+
+.task-item__timing .task-time-range {
+  grid-column: 1;
+}
+
+.task-item__timing .task-estimate {
+  grid-column: 2;
+}
+
+.task-item__timing .task-duration,
+.task-item__timing .task-timer-display {
+  grid-column: 3;
+}
+
+.task-estimate {
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.task-estimate:hover,
+.task-estimate:focus-visible {
+  color: var(--interactive-accent);
+}
+
+.task-estimate:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.tc-slot-capacity {
+  margin-inline-start: auto;
+  white-space: nowrap;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tc-slot-capacity--over {
+  color: var(--text-error);
+}
+
+.tc-slot-capacity--full {
+  color: var(--text-warning);
+}
+
+.tc-slot-capacity-track {
+  width: 80px;
+  height: 6px;
+  margin-inline-start: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--background-modifier-border);
+}
+
+.tc-slot-capacity-fill {
+  display: block;
+  height: 100%;
+  background: var(--interactive-accent);
+}
+
+.tc-slot-capacity-fill--over {
+  background: var(--text-error);
+}
+
+.tc-slot-capacity-fill--full {
+  background: var(--text-warning);
+}
+
 /* Touch input: a finger needs a bigger target than a mouse pointer does. The
    32px controls sized for a cursor fall short of the ~44px tap target phones
    and tablets expect, so grow every row control (and the grip, which is
@@ -4505,6 +4598,25 @@ body.is-phone .taskchute-modal .modal-button-container {
 }
 
 @container taskchute-list (max-width: 640px) {
+  .task-item__main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .task-item__main > * {
+    max-width: 100%;
+  }
+
+  .task-item__timing {
+    grid-template-columns: 15ch 11ch;
+    gap: 6px;
+  }
+
+  .tc-slot-capacity-track {
+    width: 48px;
+  }
+
   .task-item {
     gap: 6px;
   }
@@ -4535,6 +4647,13 @@ body.is-phone .taskchute-modal .modal-button-container {
    centred against the pair, so the row grows by the leading between two text
    lines rather than by a second control-sized band. */
 @container taskchute-list (max-width: 440px) {
+  .task-item__timing {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 8px;
+    row-gap: 2px;
+  }
+
   .task-item {
     /* On its own again, so it no longer needs the double width it had when it
        shared the trailing run of buttons. */

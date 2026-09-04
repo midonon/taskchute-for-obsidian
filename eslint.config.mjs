@@ -324,6 +324,7 @@ export default [
             "^e\\.g\\. ",
             "^TCP-",
             "^here$",
+            "^(m|min)$", // Duration units are abbreviations, not sentences.
             "^.{1,2}\\uFE0F ",
           ],
         },

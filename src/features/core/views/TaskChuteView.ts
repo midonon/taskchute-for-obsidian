@@ -68,6 +68,7 @@ import { TaskRecipeAssignmentService } from "../../recipe/services/TaskRecipeAss
 import { RecipeRunPopover } from "../../recipe/ui/RecipeRunPopover"
 import { RecipeSelectModal } from "../../recipe/modals/RecipeSelectModal"
 import RecipeManagerModal from "../../recipe/modals/RecipeManagerModal"
+import EstimatedTimeModal from "../../../ui/modals/EstimatedTimeModal"
 import { isAiTaskFeatureAvailable } from "../../ai-task/availability"
 import { AiRunPaneController } from "../../ai-task/ui/AiRunPaneController"
 import { createTerminalViewAdapter } from "../../ai-task/ui/TerminalViewAdapter"
@@ -524,6 +525,8 @@ export class TaskChuteView
       resetTaskToIdle: (inst) => this.resetTaskToIdle(inst),
       showScheduledTimeEditModal: (inst) =>
         this.showScheduledTimeEditModal(inst),
+      showEstimatedTimeEditModal: (inst) =>
+        this.showEstimatedTimeEditModal(inst),
       showTaskMoveDatePicker: (inst, anchor) =>
         this.taskScheduleController.showTaskMoveDatePicker(inst, anchor),
       duplicateInstance: (inst) => this.duplicateInstance(inst, true),
@@ -643,6 +646,7 @@ export class TaskChuteView
       app: view.app,
       sortTaskInstancesByTimeOrder: () => view.sortTaskInstancesByTimeOrder(),
       getTimeSlotKeys: () => view.getTimeSlotKeys(),
+      getSlotCapacityMinutes: (slot) => view.sectionConfig.getSlotCapacityMinutes(slot),
       sortByOrder: (instances) => view.sortByOrder(instances),
       selectTaskForKeyboard: (inst, element) =>
         view.taskSelectionController.select(inst, element),
@@ -676,6 +680,7 @@ export class TaskChuteView
       showStartTimePopup: (inst, anchor) => view.showStartTimePopup(inst, anchor),
       showStopTimePopup: (inst, anchor) => view.showStopTimePopup(inst, anchor),
       showReminderSettingsModal: (inst) => view.showReminderSettingsModal(inst),
+      showEstimatedTimeEditModal: (inst) => view.showEstimatedTimeEditModal(inst),
       getRecipeProgressSummary: (inst) => view.getRecipeProgressSummary(inst),
       showRecipeRunPopover: (inst, anchor) => view.showRecipeRunPopover(inst, anchor),
       isRecipeFeatureEnabled: () => view.isRecipeFeatureEnabled(),
@@ -3432,6 +3437,14 @@ export class TaskChuteView
   // ===========================================
   // Time Edit Modal (開始/終了時刻の編集)
   // ===========================================
+
+  private showEstimatedTimeEditModal(inst: TaskInstance): void {
+    new EstimatedTimeModal({
+      tv: (key, fallback, vars) => this.tv(key, fallback, vars),
+      app: this.app,
+      reloadTasksAndRestore: (options) => this.reloadTasksAndRestore(options),
+    }, inst).open()
+  }
 
   private showScheduledTimeEditModal(inst: TaskInstance): void {
     this.taskTimeController.showScheduledTimeEditModal(inst)

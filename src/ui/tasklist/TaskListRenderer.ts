@@ -20,6 +20,7 @@ export type TaskListRendererHost = {
   }
   sortTaskInstancesByTimeOrder: () => void
   getTimeSlotKeys: () => string[]
+  getSlotCapacityMinutes?: (slot: string) => number | null
   sortByOrder: (instances: TaskInstance[]) => TaskInstance[]
   selectTaskForKeyboard: (inst: TaskInstance, element: HTMLElement) => void
   registerManagedDomEvent: (target: Document | HTMLElement, event: string, handler: EventListener) => void
@@ -44,6 +45,7 @@ export type TaskListRendererHost = {
   showStartTimePopup: (inst: TaskInstance, anchor: HTMLElement) => void
   showStopTimePopup: (inst: TaskInstance, anchor: HTMLElement) => void
   showReminderSettingsModal: (inst: TaskInstance) => void
+  showEstimatedTimeEditModal?: (inst: TaskInstance) => void
   getRecipeProgressSummary?: (inst: TaskInstance) => Promise<RecipeProgressSummary | null>
   showRecipeRunPopover?: (inst: TaskInstance, anchor: HTMLElement) => void
   isRecipeFeatureEnabled?: () => boolean
@@ -118,6 +120,7 @@ export default class TaskListRenderer {
       showStartTimePopup: (inst, anchor) => this.host.showStartTimePopup(inst, anchor),
       showStopTimePopup: (inst, anchor) => this.host.showStopTimePopup(inst, anchor),
       showReminderSettingsModal: (inst) => this.host.showReminderSettingsModal(inst),
+      showEstimatedTimeEditModal: (inst) => this.host.showEstimatedTimeEditModal?.(inst),
       getRecipeProgressSummary: this.host.getRecipeProgressSummary
         ? (inst) => this.host.getRecipeProgressSummary!(inst)
         : undefined,
@@ -275,9 +278,10 @@ export default class TaskListRenderer {
         this.toggleSlotCollapse(slot)
       })
     } else {
-      header.textContent = slot
+      header.createSpan({ cls: 'tc-slot-label', text: slot })
     }
 
+    this.renderSlotCapacity(header, slot, this.host.taskInstances.filter((inst) => inst.slotKey === slot))
     this.setupTimeSlotDragHandlers(header, slot)
 
     if (!isCollapsed) {
@@ -318,12 +322,36 @@ export default class TaskListRenderer {
     const taskNameContainer = this.rowController.renderTaskName(main, inst)
     this.aiTaskRowRenderer?.render(taskNameContainer, inst)
     this.actions.renderProject(main, inst)
-    this.rowController.renderTimeRangeDisplay(main, inst)
-    this.rowController.renderDurationDisplay(main, inst)
+    const timing = main.createDiv({ cls: 'task-item__timing' })
+    this.rowController.renderTimeRangeDisplay(timing, inst)
+    this.rowController.renderEstimateDisplay(timing, inst)
+    this.rowController.renderDurationDisplay(timing, inst)
     this.actions.renderCommentButton(taskItem, inst)
     this.actions.renderRoutineButton(taskItem, inst)
     this.actions.renderSettingsButton(taskItem, inst)
     this.setupTaskItemEventListeners(taskItem, inst)
+  }
+
+  private renderSlotCapacity(header: HTMLElement, slot: string, instances: TaskInstance[]): void {
+    const capacity = this.host.getSlotCapacityMinutes?.(slot) ?? null
+    if (capacity == null) return
+    const estimated = instances.reduce((sum, instance) => {
+      const value = instance.task.estimatedMinutes
+      return sum + (typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 0)
+    }, 0)
+    const remaining = capacity - estimated
+    const status = remaining < 0 ? 'over' : remaining === 0 ? 'full' : 'available'
+    const summary = header.createSpan({
+      cls: `tc-slot-capacity tc-slot-capacity--${status}`,
+      text: `${estimated}/${capacity}${this.host.tv('labels.minutesShort', 'm')}`,
+    })
+    summary.setAttribute('title', remaining < 0
+      ? this.host.tv('labels.sectionOverCapacity', 'Over capacity by {minutes} minutes', { minutes: Math.abs(remaining) })
+      : this.host.tv('labels.sectionRemaining', '{minutes} minutes remaining', { minutes: remaining }))
+    const track = header.createSpan({ cls: 'tc-slot-capacity-track' })
+    const fill = track.createSpan({ cls: `tc-slot-capacity-fill tc-slot-capacity-fill--${status}` })
+    const percentage = capacity > 0 ? Math.min(100, Math.round(estimated / capacity * 100)) : 0
+    fill.style.width = `${percentage}%`
   }
 
   private createDragHandle(taskItem: HTMLElement, inst: TaskInstance, slot: string, idx: number): void {

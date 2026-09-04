@@ -148,6 +148,8 @@ export interface TaskData {
   startTime?: string
   endTime?: string
   actualMinutes?: number
+  /** Planned duration stored in task frontmatter. */
+  estimatedMinutes?: number
   status?: "pending" | "in_progress" | "completed"
   project?: string
   projectPath?: string

@@ -169,6 +169,18 @@ const createTimeController = () => {
     expect(document.querySelector('.task-settings-tooltip')).toBeNull()
   })
 
+  test('estimated time action opens the editor and closes the tooltip', () => {
+    const showEstimatedTimeEditModal = jest.fn()
+    const controller = new TaskSettingsTooltipController(createHost({ showEstimatedTimeEditModal }))
+    const anchor = document.createElement('button')
+    document.body.appendChild(anchor)
+    const instance = createInstance()
+    controller.show(instance, anchor)
+    queryTooltipItem('Set estimated time').click()
+    expect(showEstimatedTimeEditModal).toHaveBeenCalledWith(instance)
+    expect(document.querySelector('.task-settings-tooltip')).toBeNull()
+  })
+
   test('delete routes to routine handler when routine or has history', async () => {
     const host = createHost({ hasExecutionHistory: jest.fn().mockResolvedValue(true) })
     const controller = new TaskSettingsTooltipController(host)

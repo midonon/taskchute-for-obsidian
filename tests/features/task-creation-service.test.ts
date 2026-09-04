@@ -80,6 +80,33 @@ describe('TaskCreationService', () => {
     expect(content).toContain('reminder_time: "08:55"')
   })
 
+  test('createTaskFile writes a positive integer estimatedMinutes when supplied', async () => {
+    const plugin = createPlugin()
+    const service = new TaskCreationService(plugin)
+
+    await service.createTaskFile('My Task', '2025-11-16', undefined, {
+      estimatedMinutes: 45,
+    })
+
+    const content = plugin.app.vault.create.mock.calls[0]?.[1] as string
+    expect(content).toContain('estimatedMinutes: 45')
+  })
+
+  test.each([undefined, 0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'createTaskFile omits estimatedMinutes for an empty or invalid value (%p)',
+    async (estimatedMinutes) => {
+      const plugin = createPlugin()
+      const service = new TaskCreationService(plugin)
+
+      await service.createTaskFile('My Task', '2025-11-16', undefined, {
+        estimatedMinutes,
+      })
+
+      const content = plugin.app.vault.create.mock.calls[0]?.[1] as string
+      expect(content).not.toContain('estimatedMinutes:')
+    },
+  )
+
   test('createTaskFile emits NO ai fields without the aiTask option', async () => {
     const plugin = createPlugin()
     const service = new TaskCreationService(plugin)

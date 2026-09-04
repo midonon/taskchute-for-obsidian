@@ -345,6 +345,23 @@ describe('SectionConfigService', () => {
     })
   })
 
+  it('calculates section capacity including the final midnight boundary', () => {
+    const svc = new SectionConfigService([
+      { hour: 0, minute: 0 },
+      { hour: 6, minute: 30 },
+      { hour: 18, minute: 0 },
+    ]);
+    expect(svc).toHaveProperty('getSlotCapacityMinutes');
+    const capacity = svc as SectionConfigService & {
+      getSlotCapacityMinutes(slot: string): number | null
+    };
+    expect(capacity.getSlotCapacityMinutes('0:00-6:30')).toBe(390);
+    expect(capacity.getSlotCapacityMinutes('6:30-18:00')).toBe(690);
+    expect(capacity.getSlotCapacityMinutes('18:00-0:00')).toBe(360);
+    expect(capacity.getSlotCapacityMinutes('none')).toBeNull();
+    expect(capacity.getSlotCapacityMinutes('invalid')).toBeNull();
+  });
+
   describe('collision resolution in order migration', () => {
     it('both meta: newer updatedAt wins', () => {
       const svc = new SectionConfigService([

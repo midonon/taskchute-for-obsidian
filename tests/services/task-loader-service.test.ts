@@ -8,6 +8,40 @@ import {
 } from '../utils/taskViewTestUtils';
 
 describe('TaskLoaderService', () => {
+  test('loads the estimate of a reused task whose original date is different', async () => {
+    const { context } = createNonRoutineLoadContext({
+      metadataOverrides: { target_date: '2025-09-23', estimatedMinutes: 45 },
+      duplicatedInstances: [{
+        instanceId: 'reused-estimate',
+        originalPath: 'TASKS/non-routine.md',
+        slotKey: '8:00-12:00',
+        timestamp: 1_700_000_000_000,
+      }],
+    });
+    await new TaskLoaderService().load(context as unknown as TaskChuteView);
+    const reused = context.taskInstances.find((inst) => inst.instanceId === 'reused-estimate');
+    expect(reused?.task.estimatedMinutes).toBe(45);
+  });
+
+  test.each([createNonRoutineLoadContext, createRoutineLoadContext])(
+    'preserves estimated minutes when loading regular and routine tasks',
+    async (createContext) => {
+      const { context } = createContext({ metadataOverrides: { estimatedMinutes: 30 } });
+      await new TaskLoaderService().load(context as unknown as TaskChuteView);
+      expect(context.tasks[0]?.estimatedMinutes).toBe(30);
+      expect(context.taskInstances[0]?.task.estimatedMinutes).toBe(30);
+    },
+  );
+
+  test.each([undefined, 0, -1, 1.5, '30'])(
+    'ignores invalid estimated minutes: %s',
+    async (estimatedMinutes) => {
+      const { context } = createNonRoutineLoadContext({ metadataOverrides: { estimatedMinutes } });
+      await new TaskLoaderService().load(context as unknown as TaskChuteView);
+      expect(context.tasks[0]?.estimatedMinutes).toBeUndefined();
+    },
+  );
+
   test('loads visible non-routine task from vault folder', async () => {
     const { context } = createNonRoutineLoadContext();
     const loader = new TaskLoaderService();

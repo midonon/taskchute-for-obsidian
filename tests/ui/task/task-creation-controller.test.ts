@@ -89,6 +89,15 @@ describe('TaskCreationController', () => {
   const createHost = (settings: Partial<TaskChutePluginLike['settings']> = {}) => {
     const createdFile = new (TFile)()
     createdFile.path = 'TASKS/New Task.md'
+    const reusableFile = new (TFile)()
+    reusableFile.path = 'TaskChute/Task/sample.md'
+    const reusableFrontmatter: Record<string, unknown> = {
+      estimatedMinutes: 10,
+    }
+    const processFrontMatter = jest.fn(async (
+      _file: TFile,
+      updater: (frontmatter: Record<string, unknown>) => void,
+    ) => updater(reusableFrontmatter))
 
     const taskCreationService = {
       createTaskFile: jest.fn().mockResolvedValue(createdFile),
@@ -136,6 +145,10 @@ describe('TaskCreationController', () => {
       load: jest.fn().mockResolvedValue(null),
       save: jest.fn().mockResolvedValue(undefined),
     }
+    const duplicateInstanceForPath = jest.fn().mockResolvedValue({
+      path: 'TaskChute/Task/sample.md',
+      instanceId: 'dup-instance-1',
+    })
 
     const host: TaskCreationControllerHost = {
       tv: (_key, fallback, vars) => {
@@ -158,13 +171,16 @@ describe('TaskCreationController', () => {
         metadataCache: {
           getFileCache: jest.fn(() => ({ frontmatter: {} })),
         },
+        vault: {
+          getAbstractFileByPath: jest.fn(() => reusableFile),
+        },
+        fileManager: {
+          processFrontMatter,
+        },
       } as unknown as TaskCreationControllerHost['app'],
       plugin: pluginStub,
       hasInstanceForPathToday: jest.fn(() => false),
-      duplicateInstanceForPath: jest.fn().mockResolvedValue({
-        path: 'TaskChute/Task/sample.md',
-        instanceId: 'dup-instance-1',
-      }),
+      duplicateInstanceForPath,
       invalidateDayStateCache: jest.fn(),
       getDocumentContext: undefined,
       findDeletedTaskRestoreCandidate: jest.fn(() => null),
@@ -172,7 +188,15 @@ describe('TaskCreationController', () => {
       openGoogleCalendarExportForCreatedTask: jest.fn(),
     }
 
-    return { host, taskCreationService, taskReuseService }
+    return {
+      host,
+      taskCreationService,
+      taskReuseService,
+      reusableFile,
+      reusableFrontmatter,
+      processFrontMatter,
+      duplicateInstanceForPath,
+    }
   }
 
   beforeEach(() => {
@@ -210,6 +234,71 @@ describe('TaskCreationController', () => {
     const modal = document.querySelector('.modal-container') as HTMLElement
 
     expect(modal.querySelector('.task-creation-advanced')).toBeNull()
+  })
+
+  test('showAddTaskModal always renders an integer estimate input below the task name', () => {
+    const { host } = createHost()
+    const controller = new TaskCreationController(host)
+
+    controller.showAddTaskModal()
+    const modal = document.querySelector('.modal-container') as HTMLElement
+    const nameGroup = modal.querySelector('.task-form > .form-group') as HTMLElement
+    const estimateGroup = modal.querySelector('.task-creation-estimate-group') as HTMLElement
+    const estimateInput = modal.querySelector('.task-creation-estimated-minutes') as HTMLInputElement
+
+    expect(estimateInput).toBeTruthy()
+    expect(estimateInput.type).toBe('number')
+    expect(estimateInput.inputMode).toBe('numeric')
+    expect(estimateInput.getAttribute('inputmode')).toBe('numeric')
+    expect(estimateInput.min).toBe('1')
+    expect(estimateInput.step).toBe('1')
+    expect(nameGroup.nextElementSibling).toBe(estimateGroup)
+    expect(estimateGroup.closest('.task-creation-advanced')).toBeNull()
+  })
+
+  test('showAddTaskModal saves a positive integer estimate with a new task', async () => {
+    const { host, taskCreationService } = createHost()
+    const controller = new TaskCreationController(host)
+
+    controller.showAddTaskModal()
+    const modal = document.querySelector('.modal-container') as HTMLElement
+    const nameInput = modal.querySelector('input[type="text"]') as HTMLInputElement
+    const estimateInput = modal.querySelector('.task-creation-estimated-minutes') as HTMLInputElement
+    const form = modal.querySelector('form') as HTMLFormElement
+    nameInput.value = 'New Task'
+    estimateInput.value = '30'
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await Promise.resolve()
+
+    expect(taskCreationService.createTaskFile).toHaveBeenCalledWith(
+      'New Task',
+      '2025-10-09',
+      undefined,
+      expect.objectContaining({ estimatedMinutes: 30 }),
+    )
+    expect(host.reloadTasksAndRestore).toHaveBeenCalled()
+  })
+
+  test.each(['0', '1.5'])('showAddTaskModal rejects estimate %s before creating a task', async (value) => {
+    const { host, taskCreationService } = createHost()
+    const controller = new TaskCreationController(host)
+
+    controller.showAddTaskModal()
+    const modal = document.querySelector('.modal-container') as HTMLElement
+    const nameInput = modal.querySelector('input[type="text"]') as HTMLInputElement
+    const estimateInput = modal.querySelector('.task-creation-estimated-minutes') as HTMLInputElement
+    const form = modal.querySelector('form') as HTMLFormElement
+    nameInput.value = 'New Task'
+    estimateInput.value = value
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await Promise.resolve()
+
+    expect(taskCreationService.createTaskFile).not.toHaveBeenCalled()
+    expect(Notice).toHaveBeenCalledWith('Enter a whole number of minutes greater than 0')
   })
 
   test('showAddTaskModal saves advanced schedule options and opens calendar export', async () => {
@@ -297,7 +386,7 @@ describe('TaskCreationController', () => {
   })
 
   test('reuseExistingTask records duplicate via reuse service and invalidates cache', async () => {
-    const { host } = createHost()
+    const { host, processFrontMatter } = createHost()
     host.hasInstanceForPathToday = jest.fn(() => false)
     const controller = new TaskCreationController(host)
 
@@ -308,6 +397,7 @@ describe('TaskCreationController', () => {
     expect(host.invalidateDayStateCache).toHaveBeenCalledWith('2025-10-09')
     expect(host.duplicateInstanceForPath).not.toHaveBeenCalled()
     expect(host.reloadTasksAndRestore).toHaveBeenCalled()
+    expect(processFrontMatter).not.toHaveBeenCalled()
   })
 
   test('showAddTaskModal applies advanced schedule options when reusing existing task', async () => {
@@ -376,6 +466,79 @@ describe('TaskCreationController', () => {
     expect(host.duplicateInstanceForPath).toHaveBeenCalledWith('TaskChute/Task/sample.md', undefined)
     expect(host.taskReuseService.reuseTaskAtDate).not.toHaveBeenCalled()
     expect(host.invalidateDayStateCache).not.toHaveBeenCalled()
+  })
+
+  test('reuseExistingTask updates the base estimate before duplicating a visible task', async () => {
+    const {
+      host,
+      reusableFile,
+      reusableFrontmatter,
+      processFrontMatter,
+      duplicateInstanceForPath,
+    } = createHost()
+    host.hasInstanceForPathToday = jest.fn(() => true)
+    const controller = new TaskCreationController(host)
+
+    const result = await (controller as unknown as {
+      reuseExistingTask: (
+        path: string,
+        options?: { estimatedMinutes?: number },
+      ) => Promise<boolean>
+    }).reuseExistingTask('TaskChute/Task/sample.md', { estimatedMinutes: 45 })
+
+    expect(result).toBe(true)
+    expect(processFrontMatter).toHaveBeenCalledWith(reusableFile, expect.any(Function))
+    expect(reusableFrontmatter.estimatedMinutes).toBe(45)
+    expect(duplicateInstanceForPath).toHaveBeenCalledWith(
+      'TaskChute/Task/sample.md',
+      { estimatedMinutes: 45 },
+    )
+    expect(
+      processFrontMatter.mock.invocationCallOrder[0],
+    ).toBeLessThan(duplicateInstanceForPath.mock.invocationCallOrder[0])
+  })
+
+  test('reuseExistingTask updates the base estimate before reusing a hidden task', async () => {
+    const { host, reusableFile, reusableFrontmatter, processFrontMatter, taskReuseService } = createHost()
+    host.hasInstanceForPathToday = jest.fn(() => false)
+    const controller = new TaskCreationController(host)
+
+    const result = await (controller as unknown as {
+      reuseExistingTask: (
+        path: string,
+        options?: { estimatedMinutes?: number },
+      ) => Promise<boolean>
+    }).reuseExistingTask('TaskChute/Task/sample.md', { estimatedMinutes: 45 })
+
+    expect(result).toBe(true)
+    expect(processFrontMatter).toHaveBeenCalledWith(reusableFile, expect.any(Function))
+    expect(reusableFrontmatter.estimatedMinutes).toBe(45)
+    expect(taskReuseService.reuseTaskAtDate).toHaveBeenCalledWith(
+      'TaskChute/Task/sample.md',
+      '2025-10-09',
+      { scheduledTime: undefined, reminderTime: undefined },
+    )
+    expect(
+      processFrontMatter.mock.invocationCallOrder[0],
+    ).toBeLessThan(taskReuseService.reuseTaskAtDate.mock.invocationCallOrder[0])
+  })
+
+  test('reuseExistingTask reports estimate update failures through the existing catch', async () => {
+    const { host, processFrontMatter } = createHost()
+    host.hasInstanceForPathToday = jest.fn(() => true)
+    processFrontMatter.mockRejectedValue(new Error('write failed'))
+    const controller = new TaskCreationController(host)
+
+    const result = await (controller as unknown as {
+      reuseExistingTask: (
+        path: string,
+        options?: { estimatedMinutes?: number },
+      ) => Promise<boolean>
+    }).reuseExistingTask('TaskChute/Task/sample.md', { estimatedMinutes: 45 })
+
+    expect(result).toBe(false)
+    expect(host.duplicateInstanceForPath).not.toHaveBeenCalled()
+    expect(Notice).toHaveBeenCalledWith('Failed to reuse task')
   })
 
   test('showAddTaskModal injects host-provided document/window context', async () => {

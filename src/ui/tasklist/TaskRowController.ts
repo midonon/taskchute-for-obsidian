@@ -11,6 +11,7 @@ export interface TaskRowControllerHost {
   showStartTimePopup: (inst: TaskInstance, anchor: HTMLElement) => void
   showStopTimePopup: (inst: TaskInstance, anchor: HTMLElement) => void
   showReminderSettingsModal: (inst: TaskInstance) => void
+  showEstimatedTimeEditModal?: (inst: TaskInstance) => void
   getRecipeProgressSummary?: (inst: TaskInstance) => Promise<RecipeProgressSummary | null>
   showRecipeRunPopover?: (inst: TaskInstance, anchor: HTMLElement) => void
   isRecipeFeatureEnabled?: () => boolean
@@ -267,9 +268,8 @@ export default class TaskRowController {
     if (inst.state === 'done' && inst.startTime && inst.stopTime) {
       const durationEl = parent.createSpan( { cls: 'task-duration' })
       const duration = this.host.calculateCrossDayDuration(inst.startTime, inst.stopTime)
-      const hours = Math.floor(duration / 3600000)
-      const minutes = Math.floor((duration % 3600000) / 60000) % 60
-      durationEl.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+      const minutes = Math.max(0, Math.floor(duration / 60000))
+      durationEl.textContent = `${this.host.tv('labels.actualShort', 'Actual')} ${minutes}${this.host.tv('labels.minutesShort', 'm')}`
       const durationLabel = this.host.tv('tooltips.duration', 'Duration')
       const isCrossDay = inst.startTime.getDate() !== inst.stopTime.getDate()
       durationEl.setAttribute(
@@ -285,6 +285,30 @@ export default class TaskRowController {
       })
       this.updateTimerDisplay(timerEl, inst)
     }
+  }
+
+  renderEstimateDisplay(parent: HTMLElement, inst: TaskInstance): void {
+    const minutes = inst.task.estimatedMinutes
+    const hasEstimate = typeof minutes === 'number' && Number.isInteger(minutes) && minutes > 0
+    const value = hasEstimate
+      ? `${minutes}${this.host.tv('labels.minutesShort', 'm')}`
+      : this.host.tv('labels.estimateUnset', '-')
+    const title = this.host.tv('buttons.setEstimatedTime', 'Set estimated time')
+    const estimate = parent.createSpan({
+      cls: 'task-estimate',
+      text: `${this.host.tv('labels.estimateShort', 'Est.')} ${value}`,
+      attr: { role: 'button', tabindex: '0', title, 'aria-label': title },
+    })
+    const edit = (event: Event) => {
+      event.stopPropagation()
+      this.host.showEstimatedTimeEditModal?.(inst)
+    }
+    this.registerTapEvent(estimate, edit)
+    estimate.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      edit(event)
+    })
   }
 
   updateTimerDisplay(timerEl: HTMLElement, inst: TaskInstance): void {

@@ -33,6 +33,11 @@ interface TaskFrontmatterWithLegacy extends RoutineFrontmatter {
   reminder_time?: string
 }
 
+function normalizeEstimatedMinutes(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) return undefined
+  return value
+}
+
 interface TaskExecutionEntry {
   taskTitle?: string
   taskName?: string
@@ -404,6 +409,7 @@ function createTaskFromExecutions(
       : undefined,
     routine_enabled: metadata?.routine_enabled,
     scheduledTime: getScheduledTime(metadata) || undefined,
+    estimatedMinutes: normalizeEstimatedMinutes(metadata?.estimatedMinutes),
     reminder_time: normalizeReminderTime(metadata?.reminder_time),
     taskId,
   }
@@ -463,6 +469,7 @@ async function createNonRoutineTask(
       : undefined,
     routine_enabled: isRoutineTask ? metadata?.routine_enabled : undefined,
     scheduledTime: getScheduledTime(metadata) || undefined,
+    estimatedMinutes: normalizeEstimatedMinutes(metadata?.estimatedMinutes),
     reminder_time: normalizeReminderTime(metadata?.reminder_time),
     taskId,
   }
@@ -677,6 +684,7 @@ async function createRoutineTask(
     routine_weeks: normalizeRoutineWeeks(metadata),
     routine_weekdays: normalizeRoutineWeekdays(metadata),
     scheduledTime: getScheduledTime(metadata) || undefined,
+    estimatedMinutes: normalizeEstimatedMinutes(metadata.estimatedMinutes),
     reminder_time: normalizeReminderTime(metadata.reminder_time),
     taskId,
   }
@@ -1016,6 +1024,7 @@ async function addDuplicatedInstances(
               path: originalPath,
               name: file.basename,
               displayTitle: deriveDisplayTitle(file, metadata, file.basename),
+              estimatedMinutes: normalizeEstimatedMinutes(metadata.estimatedMinutes),
               project: toStringField(metadata.project),
               projectPath: projectInfo?.path,
               projectTitle: projectInfo?.title,
