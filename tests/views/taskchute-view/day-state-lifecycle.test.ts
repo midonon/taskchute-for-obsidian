@@ -264,6 +264,120 @@ function attachRecursiveCreateEl(target: HTMLElement): void {
 }
 
 describe('TaskChuteView day-state lifecycle', () => {
+  describe('weekday section auto selection', () => {
+    const weekday = { id: 'weekday', name: 'Workday', boundaries: [
+      { hour: 0, minute: 0, label: 'Sleep' }, { hour: 9, minute: 0 },
+    ] };
+    const holiday = { id: 'holiday', name: 'Holiday', boundaries: [
+      { hour: 0, minute: 0 }, { hour: 10, minute: 0 },
+    ] };
+
+    function setup(enabled = true) {
+      const context = createView();
+      const { view, plugin } = context;
+      jest.spyOn(view as unknown as { getActualTodayString(): string }, 'getActualTodayString')
+        .mockReturnValue('2025-01-01');
+      const file = new TFile();
+      file.path = 'TaskChute/Config/section-profiles.json';
+      Object.setPrototypeOf(file, TFile.prototype);
+      plugin.pathManager.getSectionProfilesPath = () => file.path;
+      jest.spyOn(plugin.app.vault, 'getAbstractFileByPath').mockReturnValue(file);
+      jest.spyOn(plugin.app.vault, 'read').mockResolvedValue(JSON.stringify({
+        version: 1, profiles: [weekday, holiday],
+        ...(enabled ? { weekdayAssignments: ['holiday', 'weekday', 'weekday', 'weekday', 'weekday', 'weekday', 'holiday'] } : {}),
+      }));
+      return context;
+    }
+
+    test('snapshots the weekday once and selects the weekend on another date', async () => {
+      const { view, dayStateService } = setup();
+      const first = await view.ensureDayStateForCurrentDate();
+      expect(first.sectionProfile).toMatchObject(weekday);
+      expect(view.getTimeSlotKeys()).toEqual(['0:00-9:00', '9:00-0:00']);
+      expect(view.getSectionConfig().getSlotLabel('0:00-9:00')).toBe('Sleep');
+      expect(dayStateService.saveDay).toHaveBeenCalledTimes(1);
+      expect(await view.ensureDayStateForCurrentDate()).toBe(first);
+      expect(dayStateService.saveDay).toHaveBeenCalledTimes(1);
+
+      view.currentDate = new Date(2025, 0, 4);
+      const weekend = await view.ensureDayStateForCurrentDate();
+      expect(weekend.sectionProfile).toMatchObject(holiday);
+      expect(view.getSectionConfig().getSlotCapacityMinutes('0:00-10:00')).toBe(600);
+      expect(first.sectionProfile).toMatchObject(weekday);
+    });
+
+    test('preserves an existing daily choice and past dates', async () => {
+      const { view, dayStateService } = setup();
+      const manual = { ...holiday, updatedAt: 10 };
+      dayStateService.loadDay.mockResolvedValueOnce(createDayState({ sectionProfile: manual }));
+      expect((await view.ensureDayStateForCurrentDate()).sectionProfile).toEqual(manual);
+      view.currentDate = new Date(2024, 11, 31);
+      expect((await view.ensureDayStateForCurrentDate()).sectionProfile).toBeUndefined();
+      expect(view.getTimeSlotKeys()).toContain('8:00-12:00');
+      expect(dayStateService.saveDay).not.toHaveBeenCalled();
+    });
+
+    test('leaves old catalogs without weekday settings inactive', async () => {
+      const { view, dayStateService } = setup(false);
+      expect((await view.ensureDayStateForCurrentDate()).sectionProfile).toBeUndefined();
+      expect(view.getTimeSlotKeys()).toContain('8:00-12:00');
+      expect(dayStateService.saveDay).not.toHaveBeenCalled();
+    });
+
+    test('keeps a manual snapshot found on disk during the automatic write', async () => {
+      const { view, dayStateService } = setup();
+      const manual = { ...holiday, updatedAt: 20 };
+      dayStateService.loadDay.mockResolvedValueOnce(createDayState())
+        .mockResolvedValue(createDayState({ sectionProfile: manual, slotOverrides: { task: 'none' } }));
+      const result = await view.ensureDayStateForCurrentDate();
+      expect(result.sectionProfile).toEqual(manual);
+      expect(dayStateService.saveDay.mock.calls[0][1].sectionProfile).toEqual(manual);
+      expect(dayStateService.saveDay.mock.calls[0][1].slotOverrides).toEqual({ task: 'none' });
+    });
+
+    test('keeps the task view usable without overwriting a malformed weekday catalog', async () => {
+      const { view, plugin, dayStateService } = setup();
+      jest.spyOn(plugin.app.vault, 'read').mockResolvedValue('{invalid');
+      expect((await view.ensureDayStateForCurrentDate()).sectionProfile).toBeUndefined();
+      expect(view.getTimeSlotKeys()).toContain('8:00-12:00');
+      expect(dayStateService.saveDay).not.toHaveBeenCalled();
+      expect(plugin.app.vault.modify).not.toHaveBeenCalled();
+    });
+  });
+
+  test('daily section boundaries determine capacity and do not leak to an unselected day', async () => {
+    const { view, dayStateService } = createView();
+    dayStateService.loadDay.mockResolvedValueOnce(Object.assign(createDayState(), {
+      sectionProfile: { id: 'holiday', name: 'Holiday', updatedAt: 10, boundaries: [
+        { hour: 0, minute: 0, label: '睡眠' }, { hour: 10, minute: 0 }, { hour: 18, minute: 0 },
+      ] },
+    }));
+    await view.ensureDayStateForCurrentDate();
+    expect(view.getTimeSlotKeys()).toEqual(['0:00-10:00', '10:00-18:00', '18:00-0:00']);
+    expect(view.getSectionConfig().getSlotCapacityMinutes('0:00-10:00')).toBe(600);
+    expect(view.getSectionConfig().getSlotLabel('0:00-10:00')).toBe('睡眠');
+    view.currentDate = new Date(2025, 0, 2);
+    await view.ensureDayStateForCurrentDate();
+    expect(view.getTimeSlotKeys()).toContain('8:00-12:00');
+  });
+
+  test('applying a profile snapshots only the captured date and preserves task placement', async () => {
+    const { view, dayStateService } = createView();
+    dayStateService.loadDay.mockResolvedValue(createDayState({ slotOverrides: { task: '8:00-12:00' } }));
+    const reload = jest.spyOn(view, 'reloadTasksAndRestore').mockResolvedValue();
+    const profile = { id: 'holiday', name: 'Holiday', boundaries: [
+      { hour: 0, minute: 0 }, { hour: 10, minute: 0 }, { hour: 18, minute: 0 },
+    ] };
+    await view.applySectionProfile('2025-01-02', profile);
+    profile.boundaries[1].hour = 11;
+    const saved = dayStateService.saveDay.mock.calls[0][1];
+    expect(saved.sectionProfile?.boundaries[1].hour).toBe(10);
+    expect(saved.slotOverrides).toEqual({ task: '8:00-12:00' });
+    expect(dayStateService.saveDay.mock.calls[0][0]).toEqual(new Date(2025, 0, 2));
+    expect(reload).not.toHaveBeenCalled();
+    expect(view.getTimeSlotKeys()).toContain('8:00-12:00');
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });

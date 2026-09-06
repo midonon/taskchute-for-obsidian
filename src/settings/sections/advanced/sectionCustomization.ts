@@ -1,6 +1,9 @@
-import { Notice } from "obsidian"
+import { Notice, type SettingDefinitionItem } from "obsidian"
 import { t } from "../../../i18n"
 import { showConfirmModal } from "../../../ui/modals/ConfirmModal"
+import SectionWeekdayModal from "../../../ui/modals/SectionWeekdayModal"
+import SectionProfileModal from "../../../ui/modals/SectionProfileModal"
+import { SectionProfileService } from "../../../services/SectionProfileService"
 import {
   applySectionCustomization,
   isDefaultBoundaries,
@@ -8,6 +11,7 @@ import {
   validateBoundaries,
 } from "../../services/sectionCustomizationService"
 import type { SectionContext, SectionModule } from "../../types"
+import { notifySectionWeekdaySettingsChanged } from "../../services/viewNotifications"
 import {
   SectionBoundaryDraft,
   parseBoundary,
@@ -101,7 +105,7 @@ export function sectionCustomizationSection(
   return {
     items: (ctx) => {
       draft.ensureSeeded(ctx.plugin.settings.customSections)
-      return [
+      const defaultItems: SettingDefinitionItem[] = [
         {
           type: "list",
           heading: t(
@@ -166,6 +170,50 @@ export function sectionCustomizationSection(
           action: () => {
             void applyDraft(ctx, draft)
           },
+        },
+      ]
+      return [
+        {
+          type: "group",
+          heading: t("settings.advanced.sectionCustomize.heading", "Section customization"),
+          items: [
+            {
+              name: t("sectionProfiles.manage", "Manage section profiles"),
+              desc: t(
+                "sectionProfiles.manageDescription",
+                "Add and edit section profiles such as weekdays and weekends. Assign them using weekday settings. Days with an existing section setting are unchanged.",
+              ),
+              action: () => {
+                new SectionProfileModal(ctx.app, {
+                  mode: "manage",
+                  service: new SectionProfileService(ctx.plugin),
+                }).open()
+              },
+            },
+            {
+              name: t("sectionProfiles.weekdays.title", "Weekday settings"),
+              desc: t(
+                "sectionProfiles.weekdays.settingsDescription",
+                "Assign section profiles, such as weekdays and weekends, to each day of the week.",
+              ),
+              action: () => {
+                new SectionWeekdayModal(
+                  ctx.app,
+                  new SectionProfileService(ctx.plugin),
+                  () => notifySectionWeekdaySettingsChanged(ctx.app),
+                ).open()
+              },
+            },
+            {
+              type: "page",
+              name: t("sectionProfiles.defaultSettings", "Default section settings"),
+              desc: t(
+                "sectionProfiles.defaultDescription",
+                "Used on days without a daily setting or weekday assignment. Managed separately from named profiles.",
+              ),
+              items: defaultItems,
+            },
+          ],
         },
       ]
     },

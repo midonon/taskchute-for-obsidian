@@ -13,6 +13,26 @@ function readRule(css: string, selector: string, fromIndex = 0): string {
 }
 
 describe('TaskChute header layout', () => {
+  test('add task and section selection share text-button dimensions', () => {
+    const css = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8')
+    const toolbar = readRule(css, '.section-profile-toolbar {')
+    const actions = readRule(css, '.section-profile-toolbar > .header-action-section {')
+    const buttons = readRule(css, '.taskchute-view-root .section-profile-toolbar .add-task-button,')
+
+    expect(toolbar).toMatch(/align-items:\s*center;/)
+    expect(toolbar).toMatch(/--tc-header-action-height:\s*32px;/)
+    expect(actions).toMatch(/display:\s*contents;/)
+    expect(buttons).toContain('.taskchute-view-root .section-profile-toolbar .section-profile-button')
+    expect(buttons).toMatch(/height:\s*var\(--tc-header-action-height\);/)
+    expect(buttons).toMatch(/width:\s*auto;/)
+    expect(buttons).toMatch(/padding:\s*0\s+12px;/)
+
+    const queryStart = css.indexOf('@container taskchute-view (max-width: 680px)')
+    expect(readRule(css, '\n  .section-profile-toolbar {', queryStart)).toMatch(/--tc-header-action-height:\s*40px;/)
+    expect(readRule(css, '.top-bar-container.has-board-view-switch.has-section-profiles {', queryStart))
+      .toMatch(/grid-template-rows:\s*30px\s+auto;/)
+  })
+
   test('date navigation stays centred independently of unequal side controls', () => {
     const css = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8')
     const topBar = readRule(css, '.top-bar-container {')
@@ -22,7 +42,7 @@ describe('TaskChute header layout', () => {
       '.date-nav-container.compact {',
       css.indexOf('.date-nav-container {'),
     )
-    const actions = readRule(css, '.header-action-section {')
+    const actions = readRule(css, '\n.header-action-section {')
 
     expect(topBar).toMatch(/display:\s*grid;/)
     expect(topBar).toMatch(

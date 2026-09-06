@@ -61,11 +61,13 @@ async function serializeRunningTaskMutation<T>(
 
 export class RunningTasksService {
   private sectionConfig: SectionConfigService | null = null
+  private preserveStoredSlots = false
 
   constructor(private plugin: TaskChutePluginLike) {}
 
-  setSectionConfig(config: SectionConfigService): void {
+  setSectionConfig(config: SectionConfigService, preserveStoredSlots = false): void {
     this.sectionConfig = config
+    this.preserveStoredSlots = preserveStoredSlots
   }
 
   getSectionConfig(): SectionConfigService | null {
@@ -473,8 +475,10 @@ export class RunningTasksService {
       })
     }
 
-    for (const record of records) {
-      if (record.date !== dateString) continue
+    for (const storedRecord of records) {
+      if (storedRecord.date !== dateString) continue
+      // A daily profile changes the display, not the saved running record.
+      const record = this.preserveStoredSlots ? { ...storedRecord } : storedRecord
 
       // Migrate slot keys when section boundaries are customized
       if (this.sectionConfig) {
@@ -484,11 +488,13 @@ export class RunningTasksService {
           record.slotKey = !isNaN(startDate.getTime())
             ? this.sectionConfig.getCurrentTimeSlot(startDate)
             : 'none'
-          didMigrateSlotKeys = true
+          didMigrateSlotKeys = !this.preserveStoredSlots
         }
         if (record.originalSlotKey && !this.sectionConfig.isValidSlotKey(record.originalSlotKey)) {
-          record.originalSlotKey = undefined
-          didMigrateSlotKeys = true
+          record.originalSlotKey = this.preserveStoredSlots
+            ? this.sectionConfig.migrateSlotKey(record.originalSlotKey)
+            : undefined
+          didMigrateSlotKeys = !this.preserveStoredSlots
         }
       }
 

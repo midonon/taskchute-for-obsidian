@@ -114,6 +114,18 @@ describe('SectionConfigService', () => {
         { hour: 8, minute: 0 },
       ])).toBeUndefined()
     })
+
+    it('trims string labels and omits empty or non-string labels', () => {
+      expect(SectionConfigService.sanitizeBoundaries([
+        { hour: 0, minute: 0, label: '  Sleep  ' },
+        { hour: 8, minute: 0, label: '   ' },
+        { hour: 12, minute: 0, label: 123 },
+      ])).toEqual([
+        { hour: 0, minute: 0, label: 'Sleep' },
+        { hour: 8, minute: 0 },
+        { hour: 12, minute: 0 },
+      ])
+    })
   })
 
   describe('getSlotFromTime', () => {
@@ -360,6 +372,29 @@ describe('SectionConfigService', () => {
     expect(capacity.getSlotCapacityMinutes('18:00-0:00')).toBe(360);
     expect(capacity.getSlotCapacityMinutes('none')).toBeNull();
     expect(capacity.getSlotCapacityMinutes('invalid')).toBeNull();
+  });
+
+  it('looks up labels by slot start without changing time-only boundaries or capacity', () => {
+    const svc = new SectionConfigService([
+      { hour: 0, minute: 0, label: 'Sleep' },
+      { hour: 6, minute: 30, label: 'Morning' },
+      { hour: 18, minute: 0, label: 'Evening' },
+    ]);
+
+    expect(svc.getSlotKeys()).toEqual(['0:00-6:30', '6:30-18:00', '18:00-0:00']);
+    expect(svc.getSlotLabel('0:00-6:30')).toBe('Sleep');
+    expect(svc.getSlotLabel('6:30-18:00')).toBe('Morning');
+    expect(svc.getSlotLabel('18:00-0:00')).toBe('Evening');
+    expect(svc.getSlotLabel('none')).toBeUndefined();
+    expect(svc.getSlotLabel('invalid')).toBeUndefined();
+    expect(svc.getTimeBoundaries()).toEqual([
+      { hour: 0, minute: 0 },
+      { hour: 6, minute: 30 },
+      { hour: 18, minute: 0 },
+    ]);
+    expect(svc.getSlotCapacityMinutes('0:00-6:30')).toBe(390);
+    expect(svc.getSlotCapacityMinutes('6:30-18:00')).toBe(690);
+    expect(svc.getSlotCapacityMinutes('18:00-0:00')).toBe(360);
   });
 
   describe('collision resolution in order migration', () => {

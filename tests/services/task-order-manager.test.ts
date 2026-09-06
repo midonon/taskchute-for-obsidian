@@ -1,6 +1,7 @@
 import TaskOrderManager, { TaskOrderManagerOptions } from '../../src/features/core/services/TaskOrderManager';
 import DayStateStoreService from '../../src/services/DayStateStoreService';
 import { DayState, TaskData, TaskInstance } from '../../src/types';
+import { SectionConfigService } from '../../src/services/SectionConfigService';
 
 describe('TaskOrderManager', () => {
   const createOptions = (overrides: Partial<TaskOrderManagerOptions> = {}) => {
@@ -72,6 +73,23 @@ describe('TaskOrderManager', () => {
     startTime: overrides.startTime,
     stopTime: overrides.stopTime,
     createdMillis: overrides.createdMillis ?? overrides.task?.createdMillis,
+  });
+
+  test('keeps other profile orders and original duplicate slots when saving a projected layout', async () => {
+    const { options, dayState } = createOptions();
+    const boundaries = [{ hour: 0, minute: 0 }, { hour: 10, minute: 0 }, { hour: 18, minute: 0 }];
+    Object.assign(dayState, { sectionProfile: { id: 'holiday', name: 'Holiday', boundaries, updatedAt: 1 } });
+    Object.assign(options, { getSectionConfig: () => new SectionConfigService(boundaries) });
+    dayState.orders['TASKS/sample.md::8:00-12:00'] = 7;
+    dayState.duplicatedInstances = [{ instanceId: 'dup', originalPath: 'TASKS/sample.md', slotKey: '8:00-12:00', timestamp: 1 }];
+    const manager = new TaskOrderManager(options);
+    expect(manager.loadSavedOrders()['TASKS/sample.md::0:00-10:00']).toBe(7);
+    await manager.saveTaskOrders([createInstance({ instanceId: 'dup', slotKey: '0:00-10:00', order: 3 })]);
+    expect(dayState.orders['TASKS/sample.md::8:00-12:00']).toBe(7);
+    expect(dayState.orders['TASKS/sample.md::0:00-10:00']).toBe(3);
+    expect(dayState.duplicatedInstances[0].slotKey).toBe('8:00-12:00');
+    await manager.saveTaskOrders([createInstance({ instanceId: 'dup', slotKey: '10:00-18:00', order: 3 })]);
+    expect(dayState.duplicatedInstances[0].slotKey).toBe('10:00-18:00');
   });
 
   test('sortTaskInstancesByTimeOrder assigns deterministic orders for done/running/idle', () => {

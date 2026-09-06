@@ -1,8 +1,24 @@
-import type { SettingDefinitionAction, SettingDefinitionList } from 'obsidian';
+import type { SettingDefinitionAction, SettingDefinitionGroup, SettingDefinitionList } from 'obsidian';
 import { Notice, mockApp } from 'obsidian';
+import SectionWeekdayModal from '../../src/ui/modals/SectionWeekdayModal';
+import SectionProfileModal from '../../src/ui/modals/SectionProfileModal';
 import { TaskChuteSettingTab } from '../../src/settings/SettingsTab';
 import { SectionConfigService } from '../../src/services/SectionConfigService';
-import { flatten } from './definitionHelpers';
+import { VIEW_TYPE_TASKCHUTE } from '../../src/types';
+import { flatten, pageNamed } from './definitionHelpers';
+
+jest.mock('../../src/ui/modals/SectionWeekdayModal', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({ open: jest.fn() })),
+}));
+
+jest.mock('../../src/ui/modals/SectionProfileModal', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({ open: jest.fn() })),
+}));
+
+const MockedSectionWeekdayModal = SectionWeekdayModal as unknown as jest.MockedClass<typeof SectionWeekdayModal>;
+const MockedSectionProfileModal = SectionProfileModal as unknown as jest.MockedClass<typeof SectionProfileModal>;
 
 function createTab() {
   const plugin = {
@@ -40,6 +56,9 @@ function actionNamed(
 describe('TaskChuteSettingTab section customization', () => {
   beforeEach(() => {
     (Notice as jest.Mock).mockClear();
+    MockedSectionWeekdayModal.mockClear();
+    MockedSectionProfileModal.mockClear();
+    mockApp.workspace.getLeavesOfType.mockReset().mockReturnValue([]);
   });
 
   test('seeds one row per boundary in effect', () => {
@@ -108,5 +127,83 @@ describe('TaskChuteSettingTab section customization', () => {
     expect(tab.getControlValue('sectionBoundary.1')).toBe(
       `0${SectionConfigService.DEFAULT_BOUNDARIES[1].hour}:00`,
     );
+  });
+
+  test('groups named profiles and weekdays while moving the single default into a subpage', () => {
+    const { tab } = createTab();
+    const advanced = pageNamed(tab.getSettingDefinitions(), 'Advanced settings');
+    expect(advanced).toBeDefined();
+    const section = advanced?.items?.find(
+      (item): item is SettingDefinitionGroup =>
+        'type' in item && item.type === 'group' && item.heading === 'Section',
+    );
+    expect(section?.items?.map((item) => 'name' in item ? item.name : '')).toEqual([
+      'Manage section profiles', 'Weekday settings', 'Default section settings',
+    ]);
+    const defaults = pageNamed(section?.items ?? [], 'Default section settings');
+    expect(defaults).toBeDefined();
+    const defaultList = flatten(defaults?.items ?? []).find(
+      (item): item is SettingDefinitionList => 'type' in item && item.type === 'list',
+    );
+    expect(defaultList?.items).toHaveLength(SectionConfigService.DEFAULT_BOUNDARIES.length);
+    expect(defaultList?.items?.[0]).toMatchObject({ control: { key: 'sectionBoundary.0' } });
+    const weekdayAction = actionNamed(tab, 'Weekday settings');
+    expect(weekdayAction?.desc).toBe(
+      'Assign section profiles, such as weekdays and weekends, to each day of the week.',
+    );
+  });
+
+  test('opens the shared profile editor in management mode without a target date or writes', () => {
+    const { tab, plugin } = createTab();
+    actionNamed(tab, 'Manage section profiles').action({} as HTMLElement, 0);
+
+    expect(MockedSectionProfileModal).toHaveBeenCalledTimes(1);
+    const host = MockedSectionProfileModal.mock.calls[0][1];
+    expect(host).toMatchObject({ mode: 'manage' });
+    expect(host).not.toHaveProperty('dateKey');
+    expect(host).not.toHaveProperty('applyProfile');
+    const modal = MockedSectionProfileModal.mock.results[0].value as { open: jest.Mock };
+    expect(modal.open).toHaveBeenCalledTimes(1);
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+    expect(mockApp.vault.create).not.toHaveBeenCalled();
+    expect(mockApp.vault.modify).not.toHaveBeenCalled();
+  });
+
+  test('opens weekday settings without persisting anything', () => {
+    const { tab, plugin } = createTab();
+    const action = actionNamed(tab, 'Weekday settings');
+
+    action.action({} as HTMLElement, 0);
+
+    expect(MockedSectionWeekdayModal).toHaveBeenCalledTimes(1);
+    const modal = MockedSectionWeekdayModal.mock.results[0]?.value as {
+      open: jest.Mock
+    };
+    expect(modal.open).toHaveBeenCalledTimes(1);
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+    expect(mockApp.vault.create).not.toHaveBeenCalled();
+    expect(mockApp.vault.modify).not.toHaveBeenCalled();
+  });
+
+  test('waits for every open view to reload after weekday settings are saved', async () => {
+    const { tab } = createTab();
+    const firstReload = jest.fn().mockResolvedValue(undefined);
+    const secondReload = jest.fn().mockResolvedValue(undefined);
+    mockApp.workspace.getLeavesOfType.mockReturnValue([
+      { view: { reloadTasksAndRestore: firstReload } },
+      { view: { reloadTasksAndRestore: secondReload } },
+    ]);
+    const action = actionNamed(tab, 'Weekday settings');
+    action.action({} as HTMLElement, 0);
+
+    const onSaved = MockedSectionWeekdayModal.mock.calls[0]?.[2];
+    await onSaved();
+
+    expect(mockApp.workspace.getLeavesOfType).toHaveBeenCalledWith(VIEW_TYPE_TASKCHUTE);
+    expect(firstReload).toHaveBeenCalledWith({ runBoundaryCheck: false });
+    expect(secondReload).toHaveBeenCalledWith({ runBoundaryCheck: false });
+
+    mockApp.workspace.getLeavesOfType.mockReturnValue([]);
+    await expect(onSaved()).resolves.toBeUndefined();
   });
 });

@@ -8,6 +8,25 @@ import {
 } from '../utils/taskViewTestUtils';
 
 describe('TaskLoaderService', () => {
+  test('switches profile display without destroying manual slots or duplicate slots', async () => {
+    const holiday = [{ hour: 0, minute: 0 }, { hour: 10, minute: 0 }, { hour: 18, minute: 0 }];
+    const { context, dayState } = createNonRoutineLoadContext({
+      dayStateOverrides: { slotOverrides: { 'tc-task-non-routine': '8:00-12:00' } },
+      duplicatedInstances: [{ instanceId: 'profile-dup', originalPath: 'TASKS/non-routine.md', slotKey: '8:00-12:00', timestamp: 1 }],
+    });
+    Object.assign(dayState, { sectionProfile: { id: 'holiday', name: 'Holiday', boundaries: holiday, updatedAt: 1 } });
+    const config = new SectionConfigService(holiday);
+    context.getSectionConfig = () => config;
+    const loader = new TaskLoaderService();
+    await loader.load(context as unknown as TaskChuteView);
+    expect(context.taskInstances.map((inst) => inst.slotKey)).toEqual(['0:00-10:00', '0:00-10:00']);
+    expect(dayState.slotOverrides['tc-task-non-routine']).toBe('8:00-12:00');
+    expect(dayState.duplicatedInstances[0].slotKey).toBe('8:00-12:00');
+    config.updateBoundaries();
+    await loader.load(context as unknown as TaskChuteView);
+    expect(context.taskInstances.map((inst) => inst.slotKey)).toEqual(['8:00-12:00', '8:00-12:00']);
+  });
+
   test('loads the estimate of a reused task whose original date is different', async () => {
     const { context } = createNonRoutineLoadContext({
       metadataOverrides: { target_date: '2025-09-23', estimatedMinutes: 45 },

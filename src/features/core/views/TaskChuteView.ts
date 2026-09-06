@@ -62,6 +62,8 @@ import TaskViewLayout from "../../../ui/layout/TaskViewLayout"
 import { ReminderSettingsModal } from "../../reminder/modals/ReminderSettingsModal"
 import { isDeleted as isDeletedEntry, isLegacyDeletionEntry, getEffectiveDeletedAt } from "../../../services/dayState/conflictResolver"
 import { SectionConfigService } from "../../../services/SectionConfigService"
+import { SectionProfileService, normalizeDaySectionProfile, type SectionProfile } from "../../../services/SectionProfileService"
+import SectionProfileModal from "../../../ui/modals/SectionProfileModal"
 import { normalizeReminderTime } from "../../reminder/services/ReminderFrontmatterService"
 import { RecipeService, createRecipeProgressKeyForInstance } from "../../recipe/services/RecipeService"
 import { TaskRecipeAssignmentService } from "../../recipe/services/TaskRecipeAssignmentService"
@@ -559,6 +561,10 @@ export class TaskChuteView
       showAddTaskModal: () => {
         void this.taskCreationController.showAddTaskModal()
       },
+      showSectionProfileModal: () => { void this.showSectionProfileModal() },
+      getSectionProfileLabel: () =>
+        this.getDayStateSnapshot(this.getCurrentDateString())?.sectionProfile?.name
+        ?? t('sectionProfiles.current', 'Current settings'),
       plugin: this.plugin,
       app: this.app,
       registerManagedDomEvent: (target, event, handler) =>
@@ -616,6 +622,7 @@ export class TaskChuteView
       persistDayState: (dateKey: string) => this.persistDayState(dateKey),
       getTimeSlotKeys: () => this.getTimeSlotKeys(),
       getOrderKey: (inst) => this.getOrderKey(inst),
+      getSectionConfig: () => this.sectionConfig,
       useOrderBasedSort: () => this.useOrderBasedSort,
       normalizeState: (state) => this.normalizeState(state),
       getStatePriority: (state) => this.getStatePriority(state),
@@ -647,6 +654,7 @@ export class TaskChuteView
       sortTaskInstancesByTimeOrder: () => view.sortTaskInstancesByTimeOrder(),
       getTimeSlotKeys: () => view.getTimeSlotKeys(),
       getSlotCapacityMinutes: (slot) => view.sectionConfig.getSlotCapacityMinutes(slot),
+      getSlotLabel: (slot) => view.sectionConfig.getSlotLabel(slot),
       sortByOrder: (instances) => view.sortByOrder(instances),
       selectTaskForKeyboard: (inst, element) =>
         view.taskSelectionController.select(inst, element),
@@ -2045,10 +2053,12 @@ export class TaskChuteView
   }
 
   private async ensureDayStateForDate(dateStr: string): Promise<DayState> {
-    const state = await this.dayStateManager.ensure(dateStr)
+    const loaded = await this.dayStateManager.ensure(dateStr)
+    const state = await this.ensureWeekdaySectionProfile(dateStr, loaded)
     if (dateStr === this.getCurrentDateString()) {
       this.currentDayState = state
       this.currentDayStateKey = dateStr
+      this.updateCurrentSectionConfig(state)
     }
     return state
   }
@@ -2062,10 +2072,7 @@ export class TaskChuteView
   }
 
   public async ensureDayStateForCurrentDate(): Promise<DayState> {
-    const state = await this.dayStateManager.ensure()
-    this.currentDayState = state
-    this.currentDayStateKey = this.dayStateManager.getCurrentKey()
-    return state
+    return this.ensureDayStateForDate(this.getCurrentDateString())
   }
 
   public getCurrentDayState(): DayState {
@@ -3851,8 +3858,65 @@ export class TaskChuteView
     return this.sectionConfig
   }
 
+  private updateCurrentSectionConfig(state: DayState): void {
+    this.sectionConfig.updateBoundaries(state.sectionProfile?.boundaries ?? this.plugin.settings.customSections)
+    this.runningTasksService.setSectionConfig(this.sectionConfig, Boolean(state.sectionProfile))
+    this.taskHeaderController.refreshSectionProfileLabel()
+  }
+
+  private async ensureWeekdaySectionProfile(dateKey: string, state: DayState): Promise<DayState> {
+    if (state.sectionProfile || dateKey < this.getActualTodayString()) return state
+    try {
+      const profile = await new SectionProfileService(this.plugin).getProfileForDate(dateKey)
+      if (!profile || state.sectionProfile) return state
+      let selected = normalizeDaySectionProfile({ ...profile, updatedAt: Date.now() })
+      if (!selected) return state
+      return await this.dayStateManager.mutateSnapshot(dateKey, (current) => {
+        // A manual selection may have reached disk while the catalog was read.
+        // Keep it and carry that same snapshot into the live cache as well.
+        selected = normalizeDaySectionProfile(current.sectionProfile) ?? selected
+        current.sectionProfile = normalizeDaySectionProfile(selected)
+      })
+    } catch (error) {
+      console.error('[TaskChuteView] Failed to apply weekday section settings', error)
+      new Notice(t('sectionProfiles.weekdays.applyFailed', 'Could not apply weekday settings. Existing sections are unchanged.'))
+      return state
+    }
+  }
+
+  private async showSectionProfileModal(): Promise<void> {
+    const dateKey = this.getCurrentDateString()
+    try {
+      const state = await this.getDayState(dateKey)
+      new SectionProfileModal(this.app, {
+        service: new SectionProfileService(this.plugin),
+        dateKey,
+        currentProfile: normalizeDaySectionProfile(state.sectionProfile),
+        applyProfile: (profile) => this.applySectionProfile(dateKey, profile),
+      }).open()
+    } catch (error) {
+      console.error('[TaskChuteView] Failed to open section profiles', error)
+      new Notice(t('sectionProfiles.notices.loadFailed', 'Failed to load section settings'))
+    }
+  }
+
+  public async applySectionProfile(dateKey: string, profile: SectionProfile): Promise<void> {
+    const previous = await this.getDayState(dateKey)
+    const selected = normalizeDaySectionProfile({
+      ...profile,
+      updatedAt: Math.max(Date.now(), (previous.sectionProfile?.updatedAt ?? 0) + 1),
+    })
+    if (!selected) throw new Error('Invalid section profile')
+    await this.dayStateManager.mutateSnapshot(dateKey, (state) => {
+      state.sectionProfile = normalizeDaySectionProfile(selected)
+    })
+    if (dateKey === this.getCurrentDateString()) {
+      await this.reloadTasksAndRestore({ runBoundaryCheck: false })
+    }
+  }
+
   async onSectionSettingsChanged(): Promise<void> {
-    this.sectionConfig.updateBoundaries(this.plugin.settings.customSections)
+    this.updateCurrentSectionConfig(this.getCurrentDayState())
     await this.reloadTasksAndRestore({ runBoundaryCheck: true })
   }
 

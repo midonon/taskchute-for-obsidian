@@ -86,3 +86,23 @@ export async function notifySectionSettingsChanged(app: App): Promise<void> {
     }
   }
 }
+
+/** Weekday profile assignments changed, so open views must reload their tasks. */
+export async function notifySectionWeekdaySettingsChanged(app: App): Promise<void> {
+  const results = await Promise.allSettled(
+    taskChuteLeaves(app).map((leaf) => {
+      const view = leaf.view as {
+        reloadTasksAndRestore?: (options?: { runBoundaryCheck?: boolean }) => Promise<void>
+      } | undefined
+      if (typeof view?.reloadTasksAndRestore === "function") {
+        return view.reloadTasksAndRestore({ runBoundaryCheck: false })
+      }
+      return Promise.resolve()
+    }),
+  )
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error("[SettingsTab] weekday section update failed", result.reason)
+    }
+  }
+}

@@ -228,6 +228,41 @@ describe('TaskHeaderController board view switch', () => {
     expect(container.classList.contains('has-board-view-switch')).toBe(false)
   })
 
+  test('keeps the board marker and board-to-add order when section profiles are enabled', () => {
+    const { host, state } = createHost({ enabled: false })
+    host.showSectionProfileModal = jest.fn()
+    const controller = new TaskHeaderController(host)
+    const container = document.createElement('div')
+    container.classList.add('top-bar-container')
+    document.body.appendChild(container)
+    controller.render(container)
+
+    expect(container.classList.contains('has-board-view-switch')).toBe(false)
+
+    state.enabled = true
+    controller.refreshAiTaskBoardSwitch()
+
+    const actions = container.querySelector('.header-action-section') as HTMLElement
+    const board = actions.querySelector('.ai-board-view-switch') as HTMLElement
+    const addButton = actions.querySelector('.add-task-button') as HTMLButtonElement
+    const toolbar = container.querySelector('.section-profile-toolbar') as HTMLElement
+    const profileButton = toolbar.querySelector('.section-profile-button') as HTMLButtonElement
+    expect(container.classList.contains('has-board-view-switch')).toBe(true)
+    expect(actions.parentElement).toBe(toolbar)
+    expect(board.parentElement).toBe(actions)
+    expect(board.nextElementSibling).toBe(addButton)
+    expect(actions.nextElementSibling).toBe(profileButton)
+
+    addButton.click()
+    expect(host.showAddTaskModal).toHaveBeenCalledTimes(1)
+
+    state.enabled = false
+    controller.refreshAiTaskBoardSwitch()
+    expect(container.classList.contains('has-board-view-switch')).toBe(false)
+    expect(actions.classList.contains('has-board-view-switch')).toBe(false)
+    expect(toolbar.classList.contains('has-board-view-switch')).toBe(false)
+  })
+
   test('refreshAiTaskBoardSwitch adds and removes the control as the feature toggles', () => {
     const { host, state } = createHost({ enabled: false })
     const { controller, container } = renderHeader(host)

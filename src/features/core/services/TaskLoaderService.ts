@@ -103,6 +103,13 @@ export interface TaskLoaderHost {
 
 const DEFAULT_SLOT_KEY = 'none'
 
+function resolveStoredSlot(context: TaskLoaderHost, slot: string | undefined, hasProfile: boolean): string | undefined {
+  if (!slot) return undefined
+  const config = context.getSectionConfig()
+  if (config.isValidSlotKey(slot)) return slot
+  return hasProfile ? config.migrateSlotKey(slot) : undefined
+}
+
 function resolveTaskId(metadata?: TaskFrontmatterWithLegacy): string | undefined {
   return extractTaskIdFromFrontmatter(metadata)
 }
@@ -316,6 +323,16 @@ export async function loadTasksForContext(context: TaskLoaderHost): Promise<void
     }
 
     await addDuplicatedInstances(context, dateKey, executions)
+    const dayState = await ensureDayState(context, dateKey)
+    if (dayState.sectionProfile) {
+      const config = context.getSectionConfig()
+      for (const instance of context.taskInstances) {
+        instance.slotKey = config.migrateSlotKey(instance.slotKey ?? 'none')
+        if (instance.originalSlotKey) {
+          instance.originalSlotKey = config.migrateSlotKey(instance.originalSlotKey)
+        }
+      }
+    }
     context.renderTaskList()
   } catch (error) {
     console.error('Failed to load tasks', error)
@@ -476,9 +493,9 @@ async function createNonRoutineTask(
 
   context.tasks.push(taskData)
 
+  const dayState = await ensureDayState(context, dateKey)
   let rawStoredSlot: string | undefined
   if (isRoutineTask) {
-    const dayState = await ensureDayState(context, dateKey)
     const { value: dayStateSlot, migrated } = getSlotOverrideValue(dayState.slotOverrides, taskId, file.path)
     rawStoredSlot = dayStateSlot
     if (migrated) {
@@ -486,7 +503,6 @@ async function createNonRoutineTask(
       await context.dayStateManager?.persist(dateKey)
     }
   } else {
-    const dayState = await ensureDayState(context, dateKey)
     const { value: dayStateSlot, migrated } = getSlotOverrideValue(dayState.slotOverrides, taskId, file.path)
     rawStoredSlot = dayStateSlot
     if (migrated) {
@@ -500,7 +516,7 @@ async function createNonRoutineTask(
       const legacyStoredSlot = consumeStoredSlotKey(context.plugin.settings.slotKeys, taskId, file.path)
       if (legacyStoredSlot.value) {
         const sectionConfig = context.getSectionConfig()
-        const normalizedLegacySlot = sectionConfig.isValidSlotKey(legacyStoredSlot.value)
+        const normalizedLegacySlot = dayState.sectionProfile || sectionConfig.isValidSlotKey(legacyStoredSlot.value)
           ? legacyStoredSlot.value
           : sectionConfig.migrateSlotKey(legacyStoredSlot.value)
         const overrideKey = taskId ?? file.path
@@ -531,7 +547,7 @@ async function createNonRoutineTask(
       await context.plugin.saveSettings()
     }
   }
-  const storedSlot = rawStoredSlot && context.getSectionConfig().isValidSlotKey(rawStoredSlot) ? rawStoredSlot : undefined
+  const storedSlot = resolveStoredSlot(context, rawStoredSlot, Boolean(dayState.sectionProfile))
   const slotKey = storedSlot ?? context.getSectionConfig().calculateSlotKeyFromTime(getScheduledTime(metadata) || undefined) ?? DEFAULT_SLOT_KEY
   const instance: TaskInstance = {
     task: taskData,
@@ -690,7 +706,7 @@ async function createRoutineTask(
   }
 
   const { value: rawStoredSlot } = getSlotOverrideValue(dayState.slotOverrides, taskId, file.path)
-  const storedSlot = rawStoredSlot && context.getSectionConfig().isValidSlotKey(rawStoredSlot) ? rawStoredSlot : undefined
+  const storedSlot = resolveStoredSlot(context, rawStoredSlot, Boolean(dayState.sectionProfile))
   const slotKey = storedSlot ?? context.getSectionConfig().calculateSlotKeyFromTime(getScheduledTime(metadata) || undefined) ?? DEFAULT_SLOT_KEY
   const instance: TaskInstance = {
     task: taskData,
@@ -1154,6 +1170,9 @@ async function ensureDayState(context: TaskLoaderHost, dateKey: string): Promise
 }
 
 function migrateDayStateSlotKeys(context: TaskLoaderHost, state: DayState): boolean {
+  // Named profiles project stored assignments into the selected boundaries.
+  // Keep their original keys so switching back does not destroy placement.
+  if (state.sectionProfile) return false
   const config = context.getSectionConfig()
   let mutated = false
 

@@ -78,6 +78,22 @@ const layerToken = (css: string, token: string): number => {
 }
 
 describe('style regressions', () => {
+  test('comment routine and settings controls use equal square dimensions', () => {
+    const css = styles()
+    for (const selector of ['.comment-button {', '.routine-button {', '.settings-task-button {']) {
+      const rule = readRule(css, selector)
+      expect(rule).toMatch(/width:\s*var\(--tc-row-control-size\);/)
+      expect(rule).toMatch(/height:\s*var\(--tc-row-control-size\);/)
+      expect(rule).toMatch(/min-width:\s*var\(--tc-row-control-size\);/)
+      expect(rule).toMatch(/padding:\s*0;/)
+      expect(rule).toMatch(/align-items:\s*center;/)
+      expect(rule).toMatch(/justify-content:\s*center;/)
+    }
+    expect(css).not.toContain('--tc-row-comment-width')
+    const touch = /@media \(pointer: coarse\)\s*\{\s*\.task-item\s*\{([^}]+)}/.exec(css)?.[1] ?? ''
+    expect(touch).toMatch(/--tc-row-control-size:\s*40px;/)
+  })
+
   test('AI runs participates in vertical layout so the task list remains scrollable', () => {
     const css = styles()
     const main = readRule(css, '.main-container {')

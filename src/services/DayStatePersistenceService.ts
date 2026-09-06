@@ -4,6 +4,10 @@ import type { TaskChutePluginLike } from '../types';
 import { DayState, MonthlyDayStateFile, HiddenRoutine } from '../types';
 import { renamePathsInMonthlyState } from './dayState/pathRename';
 import { SectionConfigService } from './SectionConfigService';
+import {
+  mergeDaySectionProfile,
+  normalizeDaySectionProfile,
+} from './SectionProfileService';
 import { listFilesInFolder } from '../utils/vaultFiles';
 import {
   mergeDeletedInstances,
@@ -80,6 +84,7 @@ export class DayStatePersistenceService {
     orders: Record<string, number>,
     meta: Record<string, { order: number; updatedAt: number }>,
     sectionConfig: SectionConfigService,
+    preserveIncompatibleSlotKeys = false,
   ): {
     orders: Record<string, number>
     meta: Record<string, { order: number; updatedAt: number }>
@@ -88,14 +93,14 @@ export class DayStatePersistenceService {
     const sanitizedMeta: Record<string, { order: number; updatedAt: number }> = {};
 
     for (const [key, value] of Object.entries(orders)) {
-      if (!isOrderKeyCompatibleWithSections(key, sectionConfig)) {
+      if (!preserveIncompatibleSlotKeys && !isOrderKeyCompatibleWithSections(key, sectionConfig)) {
         continue;
       }
       sanitizedOrders[key] = value;
     }
 
     for (const [key, value] of Object.entries(meta)) {
-      if (!isOrderKeyCompatibleWithSections(key, sectionConfig)) {
+      if (!preserveIncompatibleSlotKeys && !isOrderKeyCompatibleWithSections(key, sectionConfig)) {
         continue;
       }
       sanitizedMeta[key] = value;
@@ -347,6 +352,11 @@ export class DayStatePersistenceService {
       }
     }
 
+    const sectionProfile = normalizeDaySectionProfile(record.sectionProfile);
+    if (sectionProfile) {
+      day.sectionProfile = sectionProfile;
+    }
+
     return day;
   }
 
@@ -420,6 +430,10 @@ export class DayStatePersistenceService {
     if (state.ordersMeta && Object.keys(state.ordersMeta).length > 0) {
       comparable.ordersMeta = state.ordersMeta;
     }
+    const sectionProfile = normalizeDaySectionProfile(state.sectionProfile);
+    if (sectionProfile) {
+      comparable.sectionProfile = sectionProfile;
+    }
     return comparable;
   }
 
@@ -445,10 +459,11 @@ export class DayStatePersistenceService {
     const dateKey = this.getDateKey(date);
     const month = await this.loadMonth(monthKey);
     const existing = month.days[dateKey] ?? createEmptyDayState();
-    if (this.areDayStatesEqual(existing, state)) {
+    const normalizedState = this.normalizeDayState(state);
+    if (this.areDayStatesEqual(existing, normalizedState)) {
       return;
     }
-    month.days[dateKey] = cloneDayState(state);
+    month.days[dateKey] = cloneDayState(normalizedState);
     month.metadata.lastUpdated = new Date().toISOString();
     await this.writeMonth(monthKey, month);
   }
@@ -463,8 +478,9 @@ export class DayStatePersistenceService {
     const current = month.days[dateKey] ?? createEmptyDayState();
     const working = cloneDayState(current);
     const result = (mutator(working) as DayState) || working;
-    if (!this.areDayStatesEqual(current, result)) {
-      month.days[dateKey] = cloneDayState(result);
+    const normalizedResult = this.normalizeDayState(result);
+    if (!this.areDayStatesEqual(current, normalizedResult)) {
+      month.days[dateKey] = cloneDayState(normalizedResult);
       month.metadata.lastUpdated = new Date().toISOString();
       await this.writeMonth(monthKey, month);
     }
@@ -548,6 +564,13 @@ export class DayStatePersistenceService {
           ...state.slotOverrides,
           ...partial.slotOverrides,
         };
+      }
+
+      if (partial.sectionProfile !== undefined) {
+        const sectionProfile = normalizeDaySectionProfile(partial.sectionProfile);
+        if (sectionProfile) {
+          state.sectionProfile = sectionProfile;
+        }
       }
 
       return state;
@@ -732,6 +755,10 @@ export class DayStatePersistenceService {
         localDay.recipeProgress ?? {},
         remoteDay.recipeProgress ?? {},
       );
+      const sectionProfile = mergeDaySectionProfile(
+        localDay.sectionProfile,
+        remoteDay.sectionProfile,
+      );
 
       const mergedDay: DayState = {
         hiddenRoutines: hiddenResult.merged,
@@ -742,6 +769,9 @@ export class DayStatePersistenceService {
         orders: ordersResult.merged,
         ordersMeta: Object.keys(ordersResult.meta).length > 0 ? ordersResult.meta : undefined,
       };
+      if (sectionProfile) {
+        mergedDay.sectionProfile = sectionProfile;
+      }
       if (Object.keys(recipeProgressResult.merged).length > 0) {
         mergedDay.recipeProgress = recipeProgressResult.merged;
       }
@@ -807,6 +837,9 @@ export class DayStatePersistenceService {
 
     for (const [dateKey, localDay] of localDayStates) {
       const diskDay = diskMonth.days[dateKey] ?? createEmptyDayState();
+      const localSectionProfile = normalizeDaySectionProfile(localDay.sectionProfile);
+      const diskSectionProfile = normalizeDaySectionProfile(diskDay.sectionProfile);
+      const preserveProfileOrders = Boolean(localSectionProfile || diskSectionProfile);
 
       // Merge deletedInstances
       const deletedResult = mergeDeletedInstances(
@@ -853,11 +886,13 @@ export class DayStatePersistenceService {
         localDay.orders ?? {},
         localDay.ordersMeta ?? {},
         sectionConfig,
+        preserveProfileOrders,
       );
       const sanitizedDiskOrders = this.sanitizeOrderEntries(
         diskDay.orders ?? {},
         diskDay.ordersMeta ?? {},
         sectionConfig,
+        preserveProfileOrders,
       );
 
       // Merge orders
@@ -888,6 +923,10 @@ export class DayStatePersistenceService {
         localDay.recipeProgress ?? {},
         diskDay.recipeProgress ?? {},
       );
+      const sectionProfile = mergeDaySectionProfile(
+        localSectionProfile,
+        diskSectionProfile,
+      );
 
       const mergedDay: DayState = {
         hiddenRoutines: hiddenResult.merged,
@@ -898,6 +937,9 @@ export class DayStatePersistenceService {
         orders: ordersResult.merged,
         ordersMeta: Object.keys(ordersResult.meta).length > 0 ? ordersResult.meta : undefined,
       };
+      if (sectionProfile) {
+        mergedDay.sectionProfile = sectionProfile;
+      }
       if (Object.keys(recipeProgressResult.merged).length > 0) {
         mergedDay.recipeProgress = recipeProgressResult.merged;
       }

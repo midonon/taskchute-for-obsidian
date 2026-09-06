@@ -83,6 +83,8 @@ describe('TaskChute task creation advanced setting', () => {
       'Task creation',
       'Recipes',
       'Section',
+      'Default section settings',
+      'Section',
       'External tools',
     ])
   })

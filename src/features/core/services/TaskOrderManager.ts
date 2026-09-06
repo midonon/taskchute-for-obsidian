@@ -1,5 +1,6 @@
 import DayStateStoreService from '../../../services/DayStateStoreService';
 import { DayState, TaskInstance } from '../../../types';
+import type { SectionConfigService } from '../../../services/SectionConfigService';
 
 export interface TaskOrderManagerOptions {
   dayStateManager: DayStateStoreService;
@@ -8,6 +9,7 @@ export interface TaskOrderManagerOptions {
   getCurrentDayState: () => DayState;
   persistDayState: (dateKey: string) => Promise<void>;
   getTimeSlotKeys: () => string[];
+  getSectionConfig?: () => SectionConfigService;
   getOrderKey: (inst: TaskInstance) => string | null;
   useOrderBasedSort: () => boolean;
   normalizeState: (state: TaskInstance['state']) => 'done' | 'running' | 'idle';
@@ -99,6 +101,15 @@ export class TaskOrderManager {
       void this.options.persistDayState(dateStr);
     }
 
+    const config = state.sectionProfile ? this.options.getSectionConfig?.() : undefined;
+    if (config) {
+      const projected: Record<string, number> = {};
+      for (const [key, value] of Object.entries(normalized)) {
+        projected[config.migrateOrderKey(key)] = value;
+      }
+      // Explicit orders for the selected section win over projected ones.
+      return { ...projected, ...normalized };
+    }
     return normalized;
   }
 
@@ -137,7 +148,7 @@ export class TaskOrderManager {
     const previousOrders = dayState.orders ?? {};
     const previousMeta = dayState.ordersMeta ?? {};
 
-    const orders: Record<string, number> = {};
+    const orders: Record<string, number> = dayState.sectionProfile ? { ...previousOrders } : {};
     instances.forEach((inst) => {
       if (inst.order === undefined || inst.order === null) return;
       const key = this.options.getOrderKey(inst);
@@ -150,6 +161,10 @@ export class TaskOrderManager {
         if (!dup || !dup.instanceId) return dup;
         const match = instances.find((candidate) => candidate.instanceId === dup.instanceId);
         if (!match) return dup;
+        const config = dayState.sectionProfile ? this.options.getSectionConfig?.() : undefined;
+        if (config && dup.slotKey && config.migrateSlotKey(dup.slotKey) === match.slotKey) {
+          return dup;
+        }
         return {
           ...dup,
           slotKey: match.slotKey,

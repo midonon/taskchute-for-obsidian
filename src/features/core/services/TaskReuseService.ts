@@ -1,6 +1,6 @@
 import { Notice, TFile } from 'obsidian'
 import { t } from '../../../i18n'
-import type { TaskChutePluginLike } from '../../../types'
+import type { TaskChutePluginLike, SectionBoundary } from '../../../types'
 import { TaskIdManager, extractTaskIdFromFrontmatter } from '../../../services/TaskIdManager'
 import { getEffectiveDeletedAt } from '../../../services/dayState/conflictResolver'
 import { getScheduledTime } from '../../../utils/fieldMigration'
@@ -106,7 +106,7 @@ export class TaskReuseService {
     const frontmatter = metadata?.frontmatter
     const scheduledTime = options?.scheduledTime
       ?? getScheduledTime(frontmatter)
-    const resolvedSlotKey = this.resolveSlotKey(options?.slotKey, scheduledTime)
+    const resolvedSlotKey = this.resolveSlotKey(options?.slotKey, scheduledTime, dayState.sectionProfile?.boundaries)
     let taskId = extractTaskIdFromFrontmatter(metadata?.frontmatter)
     if (!taskId) {
       try {
@@ -141,14 +141,14 @@ export class TaskReuseService {
     return `reuse-${seed}-${dateStr}-${random}`
   }
 
-  private resolveSlotKey(slotKey: string | undefined, scheduledTime: string | undefined): string {
+  private resolveSlotKey(slotKey: string | undefined, scheduledTime: string | undefined, boundaries?: SectionBoundary[]): string {
+    const sectionConfig = new SectionConfigService(boundaries ?? this.plugin.settings.customSections)
     if (typeof slotKey === 'string' && slotKey.trim().length > 0) {
-      return slotKey
+      return boundaries ? sectionConfig.migrateSlotKey(slotKey) : slotKey
     }
     if (!scheduledTime) {
       return 'none'
     }
-    const sectionConfig = new SectionConfigService(this.plugin.settings.customSections)
     return sectionConfig.calculateSlotKeyFromTime(scheduledTime) ?? 'none'
   }
 }

@@ -13,6 +13,27 @@ export type LocationMode = "vaultRoot" | "specifiedFolder"
 export interface SectionBoundary {
   hour: number    // 0-23
   minute: number  // 0-59
+  label?: string
+}
+
+export interface SectionProfile {
+  id: string
+  name: string
+  boundaries: SectionBoundary[]
+}
+
+export type WeekdaySectionAssignments = [
+  string | null,
+  string | null,
+  string | null,
+  string | null,
+  string | null,
+  string | null,
+  string | null,
+]
+
+export interface DaySectionProfile extends SectionProfile {
+  updatedAt: number
 }
 
 export interface TaskChuteSettings {
@@ -285,6 +306,8 @@ export interface DayState {
   ordersMeta?: Record<string, { order: number; updatedAt: number }>
   /** Per-day recipe execution progress, keyed by instanceId::recipePath */
   recipeProgress?: Record<string, RecipeProgressEntry>
+  /** Snapshot of the section profile applied to this date. */
+  sectionProfile?: DaySectionProfile
 }
 
 export interface MonthlyDayStateFile {
@@ -306,6 +329,8 @@ export type PathManagerLike = Pick<
   | "ensureYearFolder"
   | "validatePath"
 > & {
+  /** Optional so lightweight test stubs keep compiling; the real PathService implements it. */
+  getSectionProfilesPath?: () => string
   getRecipeFolderPath?: () => string
   // Optional so lightweight test stubs keep compiling; the real PathService
   // implements both and createAiTaskManager checks for them at runtime.

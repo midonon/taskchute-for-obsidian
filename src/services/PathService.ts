@@ -30,6 +30,7 @@ export class PathService {
     task: 'Task',
     log: 'Log',
     review: 'Review',
+    config: 'Config',
     recipe: 'Recipes',
     aiLogs: 'AI/Logs',
   } as const;
@@ -69,6 +70,11 @@ export class PathService {
   getReviewDataPath(): string {
     const base = this.resolveBase();
     return this.join(base, PathService.GROUP, PathService.SUBDIR.review);
+  }
+
+  getSectionProfilesPath(): string {
+    const base = this.resolveBase();
+    return this.join(base, PathService.GROUP, PathService.SUBDIR.config, 'section-profiles.json');
   }
 
   getRecipeFolderPath(): string {

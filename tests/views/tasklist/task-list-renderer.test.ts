@@ -162,6 +162,36 @@ describe('TaskListRenderer', () => {
     expect(taskList.querySelector('.time-slot-header.other .tc-slot-capacity')).toBeNull();
   });
 
+  test.each([false, true])('renders a safe section name in %s mode', (collapsible) => {
+    const { host, taskList, renderer } = createHost([createInstance()]);
+    host.isCollapsibleEnabled = () => collapsible;
+    host.getSlotLabel = (slot) => slot === '8:00-12:00' ? '  Sleep <img src=x>  ' : undefined;
+
+    renderer.render();
+
+    const header = Array.from(taskList.querySelectorAll('.time-slot-header'))
+      .find((el) => el.querySelector('.tc-slot-label')?.textContent === '8:00-12:00') as HTMLElement;
+    expect(header).toBeTruthy();
+    expect(header.classList.contains('has-section-name')).toBe(true);
+    const slotLabel = header.querySelector('.tc-slot-label');
+    const sectionName = header.querySelector('.tc-section-name') as HTMLElement;
+    expect(slotLabel?.textContent).toBe('8:00-12:00');
+    expect(sectionName).toBeTruthy();
+    expect(sectionName.textContent).toBe('Sleep <img src=x>');
+    expect(sectionName.querySelector('img')).toBeNull();
+    expect(sectionName.getAttribute('title')).toBe('Sleep <img src=x>');
+    expect(sectionName.previousElementSibling).toBe(slotLabel);
+
+    if (collapsible) {
+      header.click();
+      const collapsedHeader = Array.from(taskList.querySelectorAll('.time-slot-header'))
+        .find((el) => el.querySelector('.tc-slot-label')?.textContent === '8:00-12:00') as HTMLElement;
+      expect(collapsedHeader.classList.contains('collapsed')).toBe(true);
+      expect(collapsedHeader.querySelector('.tc-section-name')?.textContent)
+        .toBe('Sleep <img src=x>');
+    }
+  });
+
   test.each([undefined, 30])('renders a plain editable estimate for %s minutes', (minutes) => {
     const inst = createInstance();
     Object.assign(inst.task, { estimatedMinutes: minutes });

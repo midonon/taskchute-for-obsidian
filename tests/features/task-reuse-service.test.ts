@@ -79,6 +79,17 @@ describe('TaskReuseService', () => {
     }
   }
 
+  test('reuse uses the target date profile rather than global sections', async () => {
+    const plugin = createPlugin();
+    const day = await plugin.dayStateService.loadDay(new Date('2025-11-07'));
+    Object.assign(day, { sectionProfile: {
+      id: 'holiday', name: 'Holiday', updatedAt: 1,
+      boundaries: [{ hour: 0, minute: 0 }, { hour: 10, minute: 0 }, { hour: 18, minute: 0 }],
+    } });
+    await new TaskReuseService(plugin).reuseTaskAtDate('TaskChute/Task/sample.md', '2025-11-07', { scheduledTime: '09:00' });
+    expect(day.duplicatedInstances[0]?.slotKey).toBe('0:00-10:00');
+  });
+
   test('reuseTaskAtDate writes duplicate entry to day state without updating frontmatter', async () => {
     const plugin = createPlugin()
     const dateService = plugin.dayStateService

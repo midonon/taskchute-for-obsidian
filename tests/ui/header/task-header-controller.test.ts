@@ -1,4 +1,5 @@
 import { Platform } from 'obsidian'
+import { localeManager } from '../../../src/i18n'
 import TaskHeaderController, {
   TaskHeaderControllerHost,
   TaskHeaderControllerDependencies,
@@ -55,7 +56,13 @@ describe('TaskHeaderController', () => {
       executeCommandById: jest.fn(),
     }
     return {
-      tv: (_key, fallback) => fallback,
+      tv: overrides.tv ?? ((_key, fallback, vars) => {
+        if (!vars) return fallback
+        return Object.entries(vars).reduce(
+          (text, [key, value]) => text.replace(`{${key}}`, String(value)),
+          fallback,
+        )
+      }),
       getCurrentDate: overrides.getCurrentDate ?? (() => new Date(2025, 9, 9)),
       setCurrentDate: overrides.setCurrentDate ?? jest.fn(),
       adjustCurrentDate: overrides.adjustCurrentDate ?? jest.fn(),
@@ -65,12 +72,15 @@ describe('TaskHeaderController', () => {
       plugin: overrides.plugin ?? (plugin as unknown as TaskHeaderControllerHost['plugin']),
       app: overrides.app ?? ({ commands } as unknown as TaskHeaderControllerHost['app']),
       registerManagedDomEvent,
+      showSectionProfileModal: overrides.showSectionProfileModal,
+      getSectionProfileLabel: overrides.getSectionProfileLabel,
     }
   }
 
   beforeEach(() => {
     document.body.innerHTML = ''
     jest.clearAllMocks()
+    localeManager.setLocale('en', false)
   })
 
   test('render wires drawer and navigation arrows', async () => {
@@ -119,6 +129,39 @@ describe('TaskHeaderController', () => {
     const robotButton = container.querySelector('.robot-terminal-button') as HTMLButtonElement
     robotButton.dispatchEvent(new Event('click', { bubbles: true }))
     expect(executeCommand).toHaveBeenCalledWith('terminal:open-terminal.integrated.root')
+  })
+
+  test('labels the add action and places it immediately before section selection', () => {
+    const host = createHost({
+      showSectionProfileModal: jest.fn(),
+      getSectionProfileLabel: () => 'Weekday',
+    })
+    const controller = new TaskHeaderController(host)
+    const container = document.createElement('div')
+    attachCreateEl(container)
+
+    controller.render(container)
+
+    const addButton = container.querySelector('.add-task-button') as HTMLButtonElement
+    const actionSection = container.querySelector('.header-action-section') as HTMLElement
+    const toolbar = container.querySelector('.section-profile-toolbar') as HTMLElement
+    const profileButton = container.querySelector('.section-profile-button') as HTMLButtonElement
+    expect(addButton.textContent).toBe('Add task')
+    expect(addButton.getAttribute('type')).toBe('button')
+    expect(actionSection.parentElement).toBe(toolbar)
+    expect(actionSection.nextElementSibling).toBe(profileButton)
+  })
+
+  test('keeps the action section in its original container when profiles are unavailable', () => {
+    const controller = new TaskHeaderController(createHost())
+    const container = document.createElement('div')
+    attachCreateEl(container)
+
+    controller.render(container)
+
+    const actionSection = container.querySelector('.header-action-section') as HTMLElement
+    expect(actionSection.parentElement).toBe(container)
+    expect(container.querySelector('.section-profile-toolbar')).toBeNull()
   })
 
   /**
@@ -210,5 +253,62 @@ describe('TaskHeaderController', () => {
     // The popup hangs off the glyph either way, so it lands in the same place
     // whichever of the two the user reached for.
     expect(anchors).toEqual([calendarButton, calendarButton])
+  })
+
+  test('keeps daily section selection in the header without weekday settings', () => {
+    const showSectionProfileModal = jest.fn()
+    const host = createHost({
+      showSectionProfileModal,
+      getSectionProfileLabel: () => 'Weekday',
+    })
+    const controller = new TaskHeaderController(host)
+    const container = document.createElement('div')
+    attachCreateEl(container)
+
+    controller.render(container)
+
+    const toolbar = container.querySelector('.section-profile-toolbar')
+    const button = container.querySelector('.section-profile-button') as HTMLButtonElement
+    expect(toolbar).toBeTruthy()
+    expect(button.textContent).toBe('Section: Weekday')
+
+    button.click()
+    expect(showSectionProfileModal).toHaveBeenCalledTimes(1)
+    const weekdayButton = container.querySelector('.section-weekday-button')
+    expect(weekdayButton).toBeNull()
+  })
+
+  test('refreshes the section profile label and falls back to current settings', () => {
+    let profileLabel = 'Holiday'
+    const host = createHost({
+      showSectionProfileModal: jest.fn(),
+      getSectionProfileLabel: () => profileLabel,
+    })
+    const controller = new TaskHeaderController(host)
+    const container = document.createElement('div')
+    attachCreateEl(container)
+
+    controller.render(container)
+    const button = container.querySelector('.section-profile-button') as HTMLButtonElement
+    expect(button.textContent).toBe('Section: Holiday')
+
+    profileLabel = ''
+    controller.refreshDateLabel()
+    expect(button.textContent).toBe('Current settings')
+  })
+
+  test('uses the root dictionary for the Japanese section profile label', () => {
+    localeManager.setLocale('ja', false)
+    const host = createHost({
+      showSectionProfileModal: jest.fn(),
+      getSectionProfileLabel: () => '平日',
+    })
+    const controller = new TaskHeaderController(host)
+    const container = document.createElement('div')
+    attachCreateEl(container)
+
+    controller.render(container)
+
+    expect(container.querySelector('.section-profile-button')?.textContent).toBe('セクション: 平日')
   })
 })

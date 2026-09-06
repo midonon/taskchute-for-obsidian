@@ -21,6 +21,7 @@ export type TaskListRendererHost = {
   sortTaskInstancesByTimeOrder: () => void
   getTimeSlotKeys: () => string[]
   getSlotCapacityMinutes?: (slot: string) => number | null
+  getSlotLabel?: (slot: string) => string | undefined
   sortByOrder: (instances: TaskInstance[]) => TaskInstance[]
   selectTaskForKeyboard: (inst: TaskInstance, element: HTMLElement) => void
   registerManagedDomEvent: (target: Document | HTMLElement, event: string, handler: EventListener) => void
@@ -262,10 +263,17 @@ export default class TaskListRenderer {
   private renderTimeSlotGroup(slot: string, instances: TaskInstance[]): void {
     const collapsible = this.host.isCollapsibleEnabled()
     const isCollapsed = collapsible && this.collapsedSlots.has(slot)
+    const sectionLabel = this.host.getSlotLabel?.(slot)?.trim()
 
     const header = this.host.taskList.createDiv( {
-      cls: `time-slot-header${collapsible ? ' tc-collapsible' : ''}${isCollapsed ? ' collapsed' : ''}`,
+      cls: `time-slot-header${collapsible ? ' tc-collapsible' : ''}${isCollapsed ? ' collapsed' : ''}${sectionLabel ? ' has-section-name' : ''}`,
     })
+
+    const renderSectionLabel = (): void => {
+      if (!sectionLabel) return
+      const name = header.createSpan({ cls: 'tc-section-name', text: sectionLabel })
+      name.setAttribute('title', sectionLabel)
+    }
 
     if (collapsible) {
       header.createSpan( {
@@ -273,12 +281,14 @@ export default class TaskListRenderer {
         text: isCollapsed ? '\u25B6' : '\u25BC',
       })
       header.createSpan( { cls: 'tc-slot-label', text: slot })
+      renderSectionLabel()
       header.addEventListener('click', () => {
         if (this.isDragging) return
         this.toggleSlotCollapse(slot)
       })
     } else {
       header.createSpan({ cls: 'tc-slot-label', text: slot })
+      renderSectionLabel()
     }
 
     this.renderSlotCapacity(header, slot, this.host.taskInstances.filter((inst) => inst.slotKey === slot))

@@ -15,6 +15,7 @@ describe('PathService storage path resolution', () => {
     expect(pm.getTaskFolderPath()).toBe('TaskChute/Task')
     expect(pm.getLogDataPath()).toBe('TaskChute/Log')
     expect(pm.getReviewDataPath()).toBe('TaskChute/Review')
+    expect(pm.getSectionProfilesPath()).toBe('TaskChute/Config/section-profiles.json')
     expect(pm.getProjectFolderPath()).toBeNull()
   })
 
@@ -23,6 +24,7 @@ describe('PathService storage path resolution', () => {
     expect(pm.getTaskFolderPath()).toBe('02_Config/TaskChute/Task')
     expect(pm.getLogDataPath()).toBe('02_Config/TaskChute/Log')
     expect(pm.getReviewDataPath()).toBe('02_Config/TaskChute/Review')
+    expect(pm.getSectionProfilesPath()).toBe('02_Config/TaskChute/Config/section-profiles.json')
   })
 
   test('projectsFolder returns null when unset and normalized path when set', () => {

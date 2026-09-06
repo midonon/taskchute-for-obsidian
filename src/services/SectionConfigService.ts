@@ -33,7 +33,12 @@ export class SectionConfigService {
       if (typeof h !== 'number' || typeof m !== 'number') return undefined
       if (!Number.isInteger(h) || !Number.isInteger(m)) return undefined
       if (h < 0 || h > 23 || m < 0 || m > 59) return undefined
-      boundaries.push({ hour: h, minute: m })
+      const label = typeof candidate.label === 'string' ? candidate.label.trim() : ''
+      boundaries.push({
+        hour: h,
+        minute: m,
+        ...(label ? { label } : {}),
+      })
     }
 
     // Day-boundary invariant: first section must start at 00:00
@@ -89,6 +94,12 @@ export class SectionConfigService {
 
   getTimeBoundaries(): TimeBoundary[] {
     return this.boundaries.map(b => ({ hour: b.hour, minute: b.minute }))
+  }
+
+  getSlotLabel(slotKey: string): string | undefined {
+    const index = this.slotKeysCache.indexOf(slotKey)
+    if (index < 0) return undefined
+    return this.boundaries[index]?.label
   }
 
   getSlotStartTime(slotKey: string): string | null {

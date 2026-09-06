@@ -497,6 +497,17 @@ body.is-phone {
 .tc-slot-label {
   flex: 1;
 }
+.time-slot-header.has-section-name .tc-slot-label {
+  flex: 0 0 auto;
+}
+.time-slot-header .tc-section-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .time-slot-header.collapsed {
   margin-bottom: 0;
   opacity: 0.85;
@@ -2850,6 +2861,137 @@ body.is-phone .taskchute-modal .modal-button-container {
 }
 
 /* Header Divider */
+.top-bar-container.has-section-profiles {
+  height: auto;
+  grid-template-rows: 30px auto;
+}
+
+.section-profile-modal .section-profile-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--font-ui-small);
+}
+
+.section-profile-modal .section-profile-table th,
+.section-profile-modal .section-profile-table td {
+  padding: 6px 4px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.section-profile-modal .section-profile-table th:first-child,
+.section-profile-modal .section-profile-table td:first-child {
+  width: 8.5em;
+  padding-left: 0;
+}
+
+.section-profile-modal .section-profile-table th:last-child,
+.section-profile-modal .section-profile-table td:last-child {
+  width: 48px;
+  padding-right: 0;
+  text-align: center;
+}
+
+.section-profile-modal .section-profile-table .form-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.section-profile-modal .section-profile-remove-row {
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.section-profile-modal .section-profile-add-row {
+  margin-top: 8px;
+}
+
+.section-profile-modal .section-profile-error {
+  color: var(--text-error);
+}
+
+.section-profile-modal .modal-button-container {
+  flex-wrap: wrap;
+}
+
+.section-profile-toolbar {
+  --tc-header-action-height: 32px;
+
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* Keep the existing action handlers/group while laying out the controls on
+   the same line as the section selector. */
+.section-profile-toolbar > .header-action-section {
+  display: contents;
+}
+
+.taskchute-view-root .section-profile-toolbar .add-task-button,
+.taskchute-view-root .section-profile-toolbar .section-profile-button {
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
+  height: var(--tc-header-action-height);
+  min-height: var(--tc-header-action-height);
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--tc-radius-sm);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.taskchute-view-root .section-profile-toolbar .add-task-button:hover,
+.taskchute-view-root .section-profile-toolbar .section-profile-button:hover {
+  background: var(--background-modifier-hover);
+}
+
+.section-weekday-modal .section-weekday-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.section-weekday-modal .section-weekday-table th,
+.section-weekday-modal .section-weekday-table td {
+  padding: 6px 0;
+  text-align: left;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.section-weekday-modal .section-weekday-table th {
+  width: 6.5em;
+  padding-right: 8px;
+  font-weight: normal;
+}
+
+.section-weekday-modal .section-weekday-error {
+  color: var(--text-error);
+}
+
+.section-profile-toolbar .section-profile-button {
+  /* Leave room for the adjacent add action, including on narrow screens. */
+  max-width: calc(100% - 9em);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .header-divider {
   display: none;
   width: 1px;
@@ -2907,6 +3049,23 @@ body.is-phone .taskchute-modal .modal-button-container {
     grid-template-rows: repeat(2, 30px);
     height: 66px;
     row-gap: 6px;
+  }
+
+  .top-bar-container.has-board-view-switch.has-section-profiles {
+    height: auto;
+    grid-template-rows: 30px auto;
+  }
+
+  .top-bar-container.has-board-view-switch .section-profile-toolbar {
+    grid-row: 2;
+  }
+
+  .section-profile-toolbar {
+    --tc-header-action-height: 40px;
+  }
+
+  .section-profile-toolbar .ai-board-view-switch {
+    flex-basis: 100%;
   }
 
   .date-nav-container.compact {
@@ -3152,13 +3311,11 @@ body.is-phone .taskchute-modal .modal-button-container {
    whole spare column to the right of the settings button. Only the text column
    grows now, and an element that is not rendered costs no width.
 
-   Row controls (play/stop, routine, settings) are square boxes of
-   `--tc-row-control-size`; the comment button keeps the height but doubles the
-   width so it is easier to hit. The grip is narrower than the rest -- it is a
+   Row controls (play/stop, comment, routine, settings) are square boxes of
+   `--tc-row-control-size`. The grip is narrower than the rest -- it is a
    grip, not a glyph -- so it carries its own pair of dimensions. */
 .task-item {
   --tc-row-control-size: 32px;
-  --tc-row-comment-width: calc(var(--tc-row-control-size) * 2);
   --tc-row-grip-width: 24px;
   --tc-row-grip-height: 24px;
 
@@ -3600,11 +3757,10 @@ body.is-phone .taskchute-modal .modal-button-container {
      states below still hide it, so what is shown is exactly what is clickable. */
   opacity: 0.6;
 
-  /* Same height as the other row controls, but twice as wide so the comment
-     button is easier to hit. */
-  width: var(--tc-row-comment-width);
+  /* Same square box as routine and settings. */
+  width: var(--tc-row-control-size);
   height: var(--tc-row-control-size);
-  min-width: var(--tc-row-comment-width);
+  min-width: var(--tc-row-control-size);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -3787,10 +3943,12 @@ body.is-phone .taskchute-modal .modal-button-container {
 }
 
 .add-task-button.repositioned {
-  width: 30px;
-  min-width: 30px;
+  width: auto;
+  min-width: 0;
   height: 30px;
-  padding: 0;
+  padding: 0 12px;
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
   margin-left: 0;
   margin-right: 0;
   box-shadow: none;
@@ -4655,10 +4813,6 @@ body.is-phone .taskchute-modal .modal-button-container {
   }
 
   .task-item {
-    /* On its own again, so it no longer needs the double width it had when it
-       shared the trailing run of buttons. */
-    --tc-row-comment-width: var(--tc-row-control-size);
-
     gap: 4px;
   }
 
@@ -5494,7 +5648,6 @@ body.is-phone .taskchute-modal .modal-button-container {
 .taskchute-view-root .top-bar-container .drawer-toggle,
 .taskchute-view-root .top-bar-container .date-nav-arrow,
 .taskchute-view-root .top-bar-container .calendar-btn,
-.taskchute-view-root .top-bar-container .add-task-button.repositioned,
 .taskchute-view-root .task-item .play-stop-button,
 .taskchute-view-root .task-item .comment-button,
 .taskchute-view-root .task-item .routine-button,

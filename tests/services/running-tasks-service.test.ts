@@ -68,6 +68,26 @@ describe('RunningTasksService.restoreForDate', () => {
     jest.restoreAllMocks()
   })
 
+  it('projects a running task into a daily profile without changing the saved record', async () => {
+    const service = createService()
+    const record = createRecord({
+      slotKey: '8:00-12:00', originalSlotKey: '8:00-12:00',
+      startTime: new Date(2025, 9, 13, 9).toISOString(),
+    })
+    jest.spyOn(service, 'loadForDate').mockResolvedValue([record])
+    service.setSectionConfig(new SectionConfigService([
+      { hour: 0, minute: 0 }, { hour: 10, minute: 0 }, { hour: 18, minute: 0 },
+    ]), true)
+    const restored = await service.restoreForDate({
+      dateString, instances: [], deletedPaths: [], hiddenRoutines: [], deletedInstances: [],
+      findTaskByPath: () => createTaskData(), generateInstanceId: () => 'generated-instance',
+    })
+    expect(restored[0].slotKey).toBe('0:00-10:00')
+    expect(restored[0].startTime?.toISOString()).toBe(record.startTime)
+    expect(record.slotKey).toBe('8:00-12:00')
+    expect(record.originalSlotKey).toBe('8:00-12:00')
+  })
+
   it('skips records hidden via day state entries', async () => {
     const record = createRecord()
     const hidden: HiddenRoutine = { path: record.taskPath, instanceId: null }

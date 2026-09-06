@@ -4,7 +4,7 @@ import TaskMoveCalendar, {
   TaskMoveCalendarFactory,
   TaskMoveCalendarHandle,
 } from '../components/TaskMoveCalendar'
-import { getCurrentLocale } from '../../i18n'
+import { getCurrentLocale, t } from '../../i18n'
 import type { TaskChutePluginLike } from '../../types'
 import type { AiTaskBoardView } from '../../features/ai-task/types'
 
@@ -28,6 +28,8 @@ export interface TaskHeaderControllerHost {
   isAiTaskFeatureEnabled?: () => boolean
   getAiTaskBoardView?: () => AiTaskBoardView
   setAiTaskBoardView?: (view: AiTaskBoardView) => void
+  showSectionProfileModal?: () => void
+  getSectionProfileLabel?: () => string
 }
 
 const TERMINAL_COMMAND_ID = 'terminal:open-terminal.integrated.root'
@@ -85,6 +87,8 @@ export default class TaskHeaderController {
   private actionSectionEl: HTMLElement | null = null
   private boardViewSwitchEl: HTMLElement | null = null
   private boardViewButtons = new Map<AiTaskBoardView, HTMLButtonElement>()
+  private sectionProfileToolbarEl: HTMLElement | null = null
+  private sectionProfileButtonEl: HTMLButtonElement | null = null
 
   constructor(
     private readonly host: TaskHeaderControllerHost,
@@ -96,6 +100,7 @@ export default class TaskHeaderController {
   render(container: HTMLElement): void {
     this.renderDateNavigation(container)
     this.renderActionButtons(container)
+    this.renderSectionProfileToolbar(container)
   }
 
   refreshDateLabel(): void {
@@ -108,6 +113,16 @@ export default class TaskHeaderController {
       const isToday = this.isCurrentDateToday()
       this.navContainerEl.classList.toggle('is-not-today', !isToday)
     }
+    this.refreshSectionProfileLabel()
+  }
+
+  public refreshSectionProfileLabel(): void {
+    const button = this.sectionProfileButtonEl
+    if (!button) return
+    const profileName = this.host.getSectionProfileLabel?.().trim() ?? ''
+    button.textContent = profileName
+      ? t('sectionProfiles.label', 'Section: {name}', { name: profileName })
+      : t('sectionProfiles.current', 'Current settings')
   }
 
   private isCurrentDateToday(): boolean {
@@ -258,15 +273,49 @@ export default class TaskHeaderController {
     const addTaskButton = actionSection.createEl('button', {
       cls: 'add-task-button repositioned',
       attr: {
-        title: this.host.tv('header.addTask', 'Add new task'),
-        'aria-label': this.host.tv('header.addTask', 'Add new task'),
+        type: 'button',
+        title: this.host.tv('header.addTask', 'Add task'),
+        'aria-label': this.host.tv('header.addTask', 'Add task'),
       },
+      text: this.host.tv('header.addTask', 'Add task'),
     })
-    applyIcon(addTaskButton, 'plus')
 
     this.host.registerManagedDomEvent(addTaskButton, 'click', (event) => {
       event.stopPropagation()
       this.host.showAddTaskModal()
+    })
+  }
+
+  private renderSectionProfileToolbar(container: HTMLElement): void {
+    if (!this.host.showSectionProfileModal) {
+      this.sectionProfileToolbarEl?.remove()
+      this.sectionProfileToolbarEl = null
+      this.sectionProfileButtonEl = null
+      container.classList.remove('has-section-profiles')
+      return
+    }
+
+    const toolbar = container.createDiv({ cls: 'section-profile-toolbar' })
+    if (this.actionSectionEl) {
+      toolbar.appendChild(this.actionSectionEl)
+    }
+    const button = toolbar.createEl('button', {
+      cls: 'section-profile-button',
+      attr: {
+        type: 'button',
+        title: t('sectionProfiles.open', 'Open section settings'),
+        'aria-label': t('sectionProfiles.open', 'Open section settings'),
+      },
+    })
+    this.sectionProfileToolbarEl = toolbar
+    this.sectionProfileButtonEl = button
+    container.classList.add('has-section-profiles')
+    toolbar.classList.add('has-section-profiles')
+    this.refreshSectionProfileLabel()
+
+    this.host.registerManagedDomEvent(button, 'click', (event) => {
+      event.stopPropagation()
+      this.host.showSectionProfileModal?.()
     })
   }
 
@@ -320,6 +369,10 @@ export default class TaskHeaderController {
   ): void {
     actionSection.classList.toggle('has-board-view-switch', present)
     actionSection.parentElement?.classList.toggle(
+      'has-board-view-switch',
+      present,
+    )
+    actionSection.closest('.top-bar-container')?.classList.toggle(
       'has-board-view-switch',
       present,
     )

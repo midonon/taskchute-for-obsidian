@@ -1,6 +1,7 @@
 import { DayState, DeletedInstance, HiddenRoutine, DayStateServiceAPI, RecipeProgressEntry } from '../types';
 import { renamePathsInDayState } from './dayState/pathRename';
 import { getEffectiveDeletedAt, isDeleted as isDeletedEntry, isHidden as isHiddenEntry, isLegacyDeletionEntry } from './dayState/conflictResolver';
+import { normalizeDaySectionProfile } from './SectionProfileService';
 
 export interface DayStateStoreServiceOptions {
   dayStateService: DayStateServiceAPI;
@@ -396,6 +397,10 @@ export class DayStateStoreService {
     };
     if (state.recipeProgress && Object.keys(state.recipeProgress).length > 0) {
       normalized.recipeProgress = state.recipeProgress;
+    }
+    const sectionProfile = normalizeDaySectionProfile(state.sectionProfile);
+    if (sectionProfile) {
+      normalized.sectionProfile = sectionProfile;
     }
     return normalized;
   }
