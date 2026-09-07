@@ -1,164 +1,97 @@
-# TaskChute Plus
+# TaskChute Plus — midonon Fork
 
-[English](./README.md) | [日本語](./README.ja.md)
+[日本語](./README.ja.md)
 
-📖 **Documentation:** https://obsidian.levers.co.jp/
+This is a personal fork of [TaskChute Plus by Hiroya Iizuka](https://github.com/hiroyaiizuka/taskchute-for-obsidian). It adds task estimates, section capacity indicators, and different time-slot layouts for weekdays, weekends, or other schedules.
 
-**Execute tasks, don't just organize them.**
+For the plugin's basic usage, commands, and official installation instructions, see the [upstream repository](https://github.com/hiroyaiizuka/taskchute-for-obsidian) and [official documentation](https://obsidian.levers.co.jp/). This README focuses on the additions and changes in this fork.
 
-TaskChute Plus is an Obsidian plugin focused on execution-first task management:
-you decide what to do now, run it, and keep a reliable log of what actually happened.
+## Main changes
 
-## What You Can Do
+### Task estimates and section capacity
 
-- Manage daily tasks in one TaskChute view with date navigation.
-- Start/stop tasks and track actual execution time.
-- Group tasks by configurable time slots plus a `No time` section.
-- Create and run routines (daily, weekly, monthly patterns).
-- Move, duplicate, reset, and delete task instances with day-state persistence.
-- Link tasks to projects and open project board views.
-- Review history from execution logs and yearly heatmap data.
-- Set reminder times per task.
-- Export tasks to Google Calendar URL scheme.
-- Use Japanese/English UI (or follow Obsidian language).
+- Enter an estimate when creating a task. Both regular and routine tasks are supported.
+- Click or tap the estimate text in a task row to open the editor directly. Unset estimates also provide an editable placeholder.
+- Completed tasks display estimated and actual durations side by side, such as a 30-minute estimate and 60 minutes of actual time.
+- Section headers show the total estimated time, section capacity, and a usage bar. The indicator uses a warning color at capacity and red when over capacity.
 
-## Commands
+For example, `60/240m` means a total estimate of 60 minutes in a 240-minute section. The “No time” section has no time window, so it does not display a capacity comparison.
 
-Available from Obsidian Command Palette:
+![Task estimates, actual durations, and section capacity in the Japanese UI](https://github.com/user-attachments/assets/96f872f1-7b94-4d32-a0e6-50c45bf118e3)
 
-- `Open TaskChute`
-- `TaskChute settings`
-- `Show today's tasks`
-- `Reorganize idle tasks to current slot`
-- `Duplicate selected task` (when TaskChute view is active)
-- `Delete selected task` (when TaskChute view is active)
-- `Reset selected task` (when TaskChute view is active)
+*An example of the estimate feature. The current version also includes the section settings and UI changes described below.*
 
-## Getting Started
+### Multiple section profiles and weekday assignments
 
-### Install in Obsidian
+- Save multiple time-slot layouts, such as weekday and weekend profiles. You can add more than two profiles.
+- Give each time slot an optional name, such as “Sleep,” “Morning,” or “After dinner.” Start times and names are edited in separate table fields.
+- Assign a saved profile to each day of the week, such as one for Monday–Friday and another for Saturday–Sunday.
+- Apply a different profile to a specific date from the task list.
 
-1. Open `Settings -> Community plugins`.
-2. Install/enable `TaskChute Plus`.
-3. Run the command `Open TaskChute`.
+Public holidays are not detected automatically. Use a manual date-specific selection for holidays or other exceptions.
 
-### First Task
+### Display and controls
 
-You can create tasks from the TaskChute UI, or manually create a note in your task folder.
+Start/end times, estimates, and actual durations use aligned columns. Estimates appear as clickable text. The add-task button sits beside the section selector, and the comment, routine, and settings buttons use equal square dimensions. The added features support both Japanese and English UI.
 
-Minimal manual example:
+## Using the added features
 
-```md
----
-tags:
-  - task
-target_date: "2026-04-16"
-scheduled_time: "09:00"
----
+### Estimates
 
-# Online consultation
+Enter an estimate when creating a task, or select the estimate text in a task row. Editing from the gear menu remains available. Values are in minutes and must be positive integers. Save an empty field to clear the estimate.
+
+Estimates are stored in the task note's frontmatter:
+
+```yaml
+estimatedMinutes: 30
 ```
 
-`#task` in note body is also supported for legacy compatibility.
+### Section profiles
 
-## Settings Overview
+1. Open Obsidian settings → TaskChute Plus → Advanced settings → Sections.
+2. Open the section profile manager, edit and save a profile's name, start times, and optional time-slot names.
+3. Open the weekday settings and select a saved profile for each day of the week.
 
-Open `TaskChute settings` to configure:
+Include 0:00 and at least two start times. Time-slot names are optional.
 
-- Storage location mode (`vaultRoot` or `specifiedFolder`)
-- Project folder path (optional, independent path)
-- Review template path and filename pattern
-- Language override (`auto`, `en`, `ja`)
-- Reminder default minutes
-- Backup interval/retention for execution snapshots
-- Custom time-slot boundaries and collapsible slot UI
-- Google Calendar export defaults
+Weekday assignments apply to today and future dates that do not yet have a date-specific section profile. Once applied, the time boundaries and names are stored for that date. Editing saved profiles or weekday assignments does not bulk-rewrite dates with an existing profile or past dates.
 
-Current default values in code:
+To change a particular date, use the section selector in the task list and apply the chosen profile to the displayed date. Saving a profile alone does not change dates where a profile has already been applied.
 
-- `backupIntervalHours: 2`
-- `backupRetentionDays: 1`
-- `defaultReminderMinutes: 5`
-- `locationMode: vaultRoot`
+## Trying this fork
 
-## Default Paths
+`main` contains the combined version with both estimates and section profiles. Installing the upstream community plugin alone does not install this fork's additions.
 
-With default `vaultRoot` mode, TaskChute-managed folders are:
+### Build from source
 
-- `TaskChute/Task`
-- `TaskChute/Log`
-- `TaskChute/Review`
-
-`projectsFolder` is intentionally unset by default and can be configured separately.
-
-## AI tasks (experimental, desktop only)
-
-Run a task with an AI CLI (Claude Code or Codex) inside a real terminal embedded in the "AI runs" pane below the task list: the full interactive TUI renders there, the prompt from the task note is submitted automatically, and you can type into the session at any time — exactly as if you had launched the CLI in your own terminal.
-
-- Enable it in `TaskChute settings` → `AI task` → `Enable AI tasks`. The feature is off by default and never activates on mobile.
-- The plugin launches the CLIs you already have: **Claude Code (`claude`) and/or Codex (`codex`) must be installed and authenticated separately by you.** The plugin handles no API keys and makes no network calls itself.
-- If auto-detection fails, set the absolute binary paths in the same settings section.
-
-Mark a task note with frontmatter and add a `## Prompt` section:
-
-```markdown
----
-ai_task: true
-ai_task_host: claude        # optional: claude (default) or codex
-ai_task_cwd: Projects/demo  # optional: working directory (vault-relative or absolute)
-ai_task_args: --max-turns 5 # optional: extra CLI arguments (string or list)
----
-
-## Prompt
-
-Summarize the open questions in this project and propose next steps.
-```
-
-The task row then shows a run button; while a run is active it becomes a stop control with a status chip. Each finished run is saved as a markdown log note (the terminal transcript, colors stripped) under `TaskChute/AI/Logs/YYYY-MM/`, and log notes older than `Run log retention (days)` (default 30) are moved to the trash automatically.
-
-### Run modes
-
-- **Terminal (interactive)** — the default experience described above. In terminal mode the `## Prompt` section is optional: without one, the CLI simply opens as a plain interactive session.
-- **Headless (parsed events)** — the previous behavior, selectable via `TaskChute settings` → `AI task` → `Run mode`: the CLI runs non-interactively, parsed stream events render as text in the pane, and a composer bar sends resume-based follow-up prompts. Headless runs require a `## Prompt` section.
-- **Windows** currently has no terminal support and always runs headless, regardless of the setting.
-
-Task-note frontmatter is read-only for this feature: the plugin never edits your task notes.
-
-## Development
-
-### Requirements
-
-- Node.js 18+
-- npm
-
-### Setup
+Requires Node.js 22.22.1 or later and npm.
 
 ```bash
+git clone --branch main https://github.com/midonon/taskchute-for-obsidian.git
+cd taskchute-for-obsidian
 npm install
+npm run build
 ```
 
-### Scripts
+Back up your vault and try a test vault first. Disable TaskChute Plus, copy the built `main.js`, `manifest.json`, and `styles.css` into `.obsidian/plugins/taskchute-plus/` inside the vault, then enable the plugin again.
 
-```bash
-npm run dev       # esbuild watch
-npm run build     # production bundle
-npm run lint      # eslint for src/tests
-npm run test:unit        # jest (unit suites)
-npm run test:integration # jest (*.integration.test.ts; spawns real processes)
-```
+This fork uses the same plugin ID as upstream, so it replaces the upstream plugin within that vault. Do not delete your existing `data.json`, tasks, or logs, or overwrite them with another vault's settings. Updating to an upstream version replaces the plugin code and removes access to this fork's added features.
 
-### Release Artifacts
+If installing from a GitHub Release, first check that the release includes the features you need, then use the same three files.
 
-Obsidian loads these files from the plugin root:
+### Verification status
 
-- `main.js`
-- `manifest.json`
-- `styles.css`
+Tested in a Windows test vault. The section profile features and UI changes described here have not yet been verified on a physical iPhone.
 
-## License
+## Upstream and feedback
 
-MIT
+The upstream author maintains and distributes the official plugin. There are no plans to submit this fork as a separate plugin to the Obsidian community plugin directory.
 
-## Author
+Please direct feedback and bug reports about this fork's additions to this fork. Do not report a fork-specific issue upstream unless you have confirmed that it also occurs in the upstream version.
 
-Hiroya Iizuka
+## License and credits
+
+[MIT License](./LICENSE). The upstream copyright and license notices are preserved.
+
+- Original author: [Hiroya Iizuka](https://github.com/hiroyaiizuka)
+- Fork maintainer: [midonon](https://github.com/midonon)
