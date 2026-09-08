@@ -3349,7 +3349,8 @@ body.is-phone .taskchute-modal .modal-button-container {
    retains upstream's flex layout and its touch-friendly trailing controls. */
 .task-item__timing {
   display: grid;
-  grid-template-columns: 15ch 11ch 12ch;
+  /* Include the horizontal padding of both editable clock values (12px each). */
+  grid-template-columns: calc(15ch + 24px) 11ch 12ch;
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
@@ -4767,7 +4768,7 @@ body.is-phone .taskchute-modal .modal-button-container {
   }
 
   .task-item__timing {
-    grid-template-columns: 15ch 11ch;
+    grid-template-columns: calc(15ch + 24px) 11ch;
     gap: 6px;
   }
 

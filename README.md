@@ -17,9 +17,9 @@ For the plugin's basic usage, commands, and official installation instructions, 
 
 For example, `60/240m` means a total estimate of 60 minutes in a 240-minute section. The “No time” section has no time window, so it does not display a capacity comparison.
 
-![Task estimates, actual durations, and section capacity in the Japanese UI](https://github.com/user-attachments/assets/96f872f1-7b94-4d32-a0e6-50c45bf118e3)
+![A task estimated at 30 minutes with 18 minutes of actual time, alongside section totals and capacity in the Japanese UI](./docs/images/task-overview-ja.png)
 
-*An example of the estimate feature. The current version also includes the section settings and UI changes described below.*
+The weekly review has a 30-minute estimate and 18 minutes of actual time. Together with document preparation, the work section contains 120 estimated minutes. Screenshots were captured in a Windows test vault using the Japanese UI; task and duration values are demonstration data.
 
 ### Multiple section profiles and weekday assignments
 
@@ -51,6 +51,20 @@ estimatedMinutes: 30
 1. Open Obsidian settings → TaskChute Plus → Advanced settings → Sections.
 2. Open the section profile manager, edit and save a profile's name, start times, and optional time-slot names.
 3. Open the weekday settings and select a saved profile for each day of the week.
+
+#### Editing time slots and names
+
+<img src="./docs/images/section-profile-ja.png" width="600" alt="Weekend section profile with separate table fields for start times and names such as Sleep, Morning, Afternoon, and After dinner">
+
+This example shows the weekend profile selected from the task list. Start times and names have separate input fields. Profiles can also be edited from the section profile manager in plugin settings.
+
+#### Assigning profiles to weekdays
+
+<img src="./docs/images/weekday-assignments-ja.png" width="600" alt="Weekday assignment screen with the weekday profile selected for Monday through Friday and the weekend profile for Saturday and Sunday">
+
+The example selects the weekday profile for Monday–Friday and the weekend profile for Saturday–Sunday. Save the weekday settings to enable automatic selection.
+
+#### When settings apply
 
 Include 0:00 and at least two start times. Time-slot names are optional.
 
